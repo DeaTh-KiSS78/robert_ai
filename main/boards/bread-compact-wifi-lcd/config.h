@@ -4,11 +4,15 @@
 #include <driver/gpio.h>
 
 
-// ===================== SD CARD (SPI EXTERN) =====================
-#define SD_CS_PIN        GPIO_NUM_10
-#define SD_MOSI_PIN      GPIO_NUM_11
-#define SD_MISO_PIN      GPIO_NUM_13
-#define SD_SCK_PIN       GPIO_NUM_12
+// ===================== SD CARD =====================
+// Lafvin ESP32-S3-CAM folosește SDMMC pe 1-bit
+#define CONFIG_SOC_SDMMC_USE_GPIO_MATRIX 1
+#define CONFIG_EXAMPLE_SDMMC_BUS_WIDTH_4 0   // doar 1-bit
+
+// Pinii SDMMC conform pinout-ului LAFVIN ESP32-S3-CAM
+#define CONFIG_EXAMPLE_PIN_CLK  GPIO_NUM_39   // SD_CLK
+#define CONFIG_EXAMPLE_PIN_CMD  GPIO_NUM_38   // SD_CMD
+#define CONFIG_EXAMPLE_PIN_D0   GPIO_NUM_40   // SD_DATA0
 
 // ===================== DHT11 SENSOR =====================
 #define DHT11_PIN        GPIO_NUM_2
@@ -54,28 +58,13 @@
 #define DISPLAY_CS_PIN        GPIO_NUM_14
 
 
-#ifdef CONFIG_LCD_ST7789_240X320
-#define LCD_TYPE_ST7789_SERIAL
-#define DISPLAY_WIDTH   480
-#define DISPLAY_HEIGHT  320
-#define DISPLAY_MIRROR_X false
-#define DISPLAY_MIRROR_Y false
-#define DISPLAY_SWAP_XY true
-#define DISPLAY_INVERT_COLOR    false
-#define DISPLAY_RGB_ORDER  LCD_RGB_ELEMENT_ORDER_BGR
-#define DISPLAY_OFFSET_X  0
-#define DISPLAY_OFFSET_Y  0
-#define DISPLAY_BACKLIGHT_OUTPUT_INVERT false
-#define DISPLAY_SPI_MODE 0
-#endif
-
 #ifdef CONFIG_LCD_ILI9341_240X320
 #define LCD_TYPE_ILI9341_SERIAL
-#define DISPLAY_WIDTH   240
-#define DISPLAY_HEIGHT  320
-#define DISPLAY_MIRROR_X false
+#define DISPLAY_WIDTH   320
+#define DISPLAY_HEIGHT  240
+#define DISPLAY_MIRROR_X true
 #define DISPLAY_MIRROR_Y true
-#define DISPLAY_SWAP_XY false
+#define DISPLAY_SWAP_XY true
 #define DISPLAY_INVERT_COLOR    false
 #define DISPLAY_RGB_ORDER  LCD_RGB_ELEMENT_ORDER_BGR
 #define DISPLAY_OFFSET_X  0
