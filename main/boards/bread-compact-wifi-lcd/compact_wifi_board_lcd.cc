@@ -182,9 +182,11 @@ public:
         if (DISPLAY_BACKLIGHT_PIN != GPIO_NUM_NC) {
             GetBacklight()->RestoreBrightness();
         }
-     // Montezi SD cardul
-vTaskDelay(pdMS_TO_TICKS(1000));  // 1 s pentru stabilizare alimentare SDMMC
-sd_card_mount();
+
+		// Montezi SD cardul
+		vTaskDelay(pdMS_TO_TICKS(1000));  // 1 s pentru stabilizare alimentare SDMMC
+		sd_card_mount();
+
 
         // Pornim task-ul de webserver o singură dată
 if (!web_server_started_) {
