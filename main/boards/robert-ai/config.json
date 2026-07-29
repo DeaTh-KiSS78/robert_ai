@@ -1,0 +1,20 @@
+{
+    "type": "robert-ai",
+    "target": "esp32s3",
+    "builds": [
+        {
+            "name": "robert-ai",
+            "sdkconfig_append": [
+                "CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y",
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/16m.csv\"",
+				
+                "CONFIG_FATFS_LFN_HEAP=y",
+                "CONFIG_FATFS_MAX_LFN=255",
+                "CONFIG_FATFS_CODEPAGE=437",
+
+                "CONFIG_LANGUAGE_RO_RO=y",
+                "CONFIG_SR_WN_WN9_SOPHIA_TTS=y"
+           ]
+        }
+    ]
+}
