@@ -10,6 +10,7 @@
 #include "led/single_led.h"
 #include "assets/lang_config.h"
 #include "sd_card.h"
+#include "http_server.h"
 
 #include <esp_log.h>
 #include <driver/i2c_master.h>
@@ -31,6 +32,42 @@ private:
     Button volume_up_button_;
     Button volume_down_button_;
     LcdDisplay* display_;
+
+bool web_server_started_ = false;
+
+static void WebServerTask(void* param) {
+    auto* board = static_cast<RobertAi*>(param);
+    auto& wifi = WifiManager::GetInstance();
+
+    ESP_LOGI(TAG, "WebServerTask started, waiting for WiFi...");
+
+    while (true) {
+        bool config = wifi.IsConfigMode();
+        bool connected = wifi.IsConnected();
+
+        ESP_LOGI(TAG, "WebServerTask: config=%d, connected=%d",
+                 (int)config, (int)connected);
+
+        // Pornim serverul doar când:
+        // - NU suntem în config mode (hotspot)
+        // - suntem conectați la router
+        if (!config && connected) {
+            ESP_LOGI(TAG, "Conditions met → Starting WebServer");
+
+            if (board->GetDisplay()) {
+                board->GetDisplay()->ShowNotification("Webserver started");
+            }
+
+            start_webserver();
+            break;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    vTaskDelete(nullptr);
+}
+
 
     void InitializeSpi() {
         spi_bus_config_t buscfg = {};
@@ -151,9 +188,16 @@ public:
 		vTaskDelay(pdMS_TO_TICKS(1000));  // 1 s pentru stabilizare alimentare SDMMC
 		sd_card_mount();
 
+        // Pornim task-ul de webserver o singură dată
+if (!web_server_started_) {
+    web_server_started_ = true;
+    ESP_LOGI(TAG, "Creating WebServerTask...");
+    xTaskCreate(WebServerTask, "webserver_task", 4096, this, 5, nullptr);
+}
+   }
 
         
-    }
+  
 
     virtual Led* GetLed() override {
         static SingleLed led(BUILTIN_LED_GPIO);

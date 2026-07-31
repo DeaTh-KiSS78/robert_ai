@@ -4,7 +4,6 @@
 #include <driver/gpio.h>
 
 
-/*
 // ===================== SD CARD =====================
 // Lafvin ESP32-S3-CAM folosește SDMMC pe 1-bit
 #define CONFIG_SOC_SDMMC_USE_GPIO_MATRIX 1
@@ -15,6 +14,7 @@
 #define CONFIG_EXAMPLE_PIN_CMD  GPIO_NUM_38   // SD_CMD
 #define CONFIG_EXAMPLE_PIN_D0   GPIO_NUM_40   // SD_DATA0
 
+/*
 
 // ===================== DHT11 SENSOR =====================
 #define DHT11_PIN        GPIO_NUM_2
