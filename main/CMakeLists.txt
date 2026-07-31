@@ -131,6 +131,12 @@ elseif(CONFIG_BOARD_TYPE_Freenove_ESP32S3_DISPLAY_2_8_LCD)
     set(BUILTIN_ICON_FONT font_material_symbols_20_4)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
 
+elseif(CONFIG_BOARD_TYPE_Freenove_ESP32S3)
+    set(BOARD_DIR "freenove-esp32s3")
+    set(BUILTIN_TEXT_FONT font_noto_sans_basic_20_4)
+    set(BUILTIN_ICON_FONT font_material_symbols_20_4)
+    set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
+
 elseif(CONFIG_BOARD_TYPE_ROBERT_AI)
     set(BOARD_DIR "robert-ai")
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_20_4)
