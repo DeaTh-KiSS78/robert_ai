@@ -6,7 +6,7 @@
 #define AUDIO_INPUT_SAMPLE_RATE  24000
 #define AUDIO_OUTPUT_SAMPLE_RATE 24000
 
-//音频iis部分
+//Secțiunea audio IIS
 #define AUDIO_I2S_GPIO_MCLK      GPIO_NUM_4  //MCLK
 #define AUDIO_I2S_GPIO_BCLK      GPIO_NUM_5  //SCK
 #define AUDIO_I2S_GPIO_DIN       GPIO_NUM_6  //DIN
@@ -14,17 +14,17 @@
 #define AUDIO_I2S_GPIO_DOUT      GPIO_NUM_8  //DOUT
 #define AUDIO_CODEC_PA_PIN       GPIO_NUM_1  //PA
 
-//音频iic部分
+//Secțiunea audio IIC
 #define AUDIO_CODEC_I2C_NUM      I2C_NUM_0
 #define AUDIO_CODEC_I2C_SCL_PIN  GPIO_NUM_15
 #define AUDIO_CODEC_I2C_SDA_PIN  GPIO_NUM_16
 #define AUDIO_CODEC_ES8311_ADDR  ES8311_CODEC_DEFAULT_ADDR
 
-//boot引脚
+//Pini Butoane
 #define BOOT_BUTTON_GPIO GPIO_NUM_0
 #define BUILTIN_LED_GPIO GPIO_NUM_42
 
-//屏幕显示部分
+//Secțiunea de afișare a ecranului
 #define DISPLAY_BACKLIGHT_PIN GPIO_NUM_45
 
 #define DISPLAY_RST_PIN       GPIO_NUM_NC
@@ -49,5 +49,16 @@
 #define DISPLAY_OFFSET_Y      0
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT false
 #define DISPLAY_SPI_MODE      0
+
+//Secțiunea SD Card
+
+ #define SD_MMC_CMD GPIO_NUM_40
+ #define SD_MMC_CLK GPIO_NUM_38
+ #define SD_MMC_D0  GPIO_NUM_39
+ #define SD_MMC_D1  GPIO_NUM_41
+ #define SD_MMC_D2  GPIO_NUM_48
+ #define SD_MMC_D3  GPIO_NUM_47
+
+
 
 #endif  // _BOARD_CONFIG_H_

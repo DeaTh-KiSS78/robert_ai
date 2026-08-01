@@ -11,6 +11,7 @@
 #include "config.h"
 #include "mcp_server.h"
 #include "adc_battery_monitor.h"
+#include "sd_card.h"
 
 #include <esp_log.h>
 #include <driver/i2c_master.h>
@@ -73,7 +74,7 @@ private:
     }
 
     static void TouchTask(void *arg) {
-        auto *self = static_cast<FreenoveESP32S3Display*>(arg);
+        auto *self = static_cast<FreenoveESP32S3*>(arg);
         auto &app = Application::GetInstance();
 
         uint32_t last_tap = 0;
@@ -164,7 +165,7 @@ private:
     void InitializeLcdDisplay() {
         esp_lcd_panel_io_handle_t panel_io = nullptr;
         esp_lcd_panel_handle_t panel = nullptr;
-        // 液晶屏控制IO初始化
+        // Inițializarea IO-urilor de control al ecranului LCD
         ESP_LOGD(TAG, "Install panel IO");
         esp_lcd_panel_io_spi_config_t io_config = {};
         io_config.cs_gpio_num = DISPLAY_CS_PIN;
@@ -176,7 +177,7 @@ private:
         io_config.lcd_param_bits = 8;
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(LCD_SPI_HOST, &io_config, &panel_io));
 
-        // 初始化液晶屏驱动芯片
+        // Inițializați cipul driverului ecranului LCD
         ESP_LOGD(TAG, "Install LCD driver");
         esp_lcd_panel_dev_config_t panel_config = {};
         panel_config.reset_gpio_num = DISPLAY_RST_PIN;
@@ -210,7 +211,12 @@ public:
         InitializeButtons();
         InitializeTools();
         GetBacklight()->SetBrightness(100);
+
+		// Montezi SD cardul
+		vTaskDelay(pdMS_TO_TICKS(3000));  // 1 s pentru stabilizare alimentare SDMMC
+		sd_card_mount();
     }
+
 
     virtual Led *GetLed() override {
         static SingleLed led(BUILTIN_LED_GPIO);
