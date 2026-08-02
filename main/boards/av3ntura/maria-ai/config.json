@@ -1,9 +1,9 @@
 {
-    "type": "freenove-esp32s3",
+    "type": "maria-ai",
     "target": "esp32s3",
     "builds": [
         {
-            "name": "freenove-esp32s3",
+            "name": "maria-ai",
             "sdkconfig_append": [
                 "CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y",
                 "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/16m.csv\"",
@@ -11,6 +11,8 @@
                 "CONFIG_FATFS_LFN_HEAP=y",
                 "CONFIG_FATFS_MAX_LFN=255",
                 "CONFIG_FATFS_CODEPAGE=437",
+				"CONFIG_FLASH_CUSTOM_ASSETS=y",
+				"CONFIG_CUSTOM_ASSETS_FILE=\"${CMAKE_CURRENT_SOURCE_DIR}/main/boards/av3ntura/maria-ai/assets.bin\"",
 
                 "CONFIG_LANGUAGE_RO_RO=y",
                 "CONFIG_SR_WN_WN9_SOPHIA_TTS=y"

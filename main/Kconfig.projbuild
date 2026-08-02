@@ -78,11 +78,11 @@ choice BOARD_TYPE
     config BOARD_TYPE_Freenove_ESP32S3_DISPLAY_2_8_LCD
         bool "Freenove ESP32-S3 Display 2.8-inch LCD"
         depends on IDF_TARGET_ESP32S3
-    config BOARD_TYPE_Freenove_ESP32S3
-        bool "Freenove ESP32-S3"
+    config BOARD_TYPE_MARIA_AI
+        bool "Maria"
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_ROBERT_AI
-        bool "Robert companion"
+        bool "Robert"
         depends on IDF_TARGET_ESP32S3
 endchoice
 

@@ -35,7 +35,7 @@ jobs:
       - id: list
         name: Get all variant list
         run: |
-          echo "all_variants=$(python scripts/release.py --list-boards --json)" >> $GITHUB_OUTPUT
+          echo "all_variants=$(python scripts/release2.py --list-boards --json)" >> $GITHUB_OUTPUT
 
       - id: select
         name: Select variants based on changes
@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           source $IDF_PATH/export.sh
-          python scripts/release.py ${{ matrix.board }} --name ${{ matrix.name }}
+          python scripts/release2.py ${{ matrix.board }} --name ${{ matrix.name }}
 
       - name: List build folder (debug)
         run: ls -R ${{ github.workspace }}/build || echo "No build folder found"

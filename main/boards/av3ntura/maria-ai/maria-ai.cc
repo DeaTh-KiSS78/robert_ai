@@ -12,6 +12,7 @@
 #include "mcp_server.h"
 #include "adc_battery_monitor.h"
 #include "sd_card.h"
+#include "http_server.h"
 
 #include <esp_log.h>
 #include <driver/i2c_master.h>
@@ -19,12 +20,13 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_timer.h>
+#include <wifi_manager.h>      // 🔥 LIPSEA — FIX CRITIC
 
 #include "led/single_led.h"
 #include "system_reset.h"
 #include "esp_lcd_ili9341.h"
 
-#define TAG "FreenoveESP32S3"
+#define TAG "MariaAi"
 
 class TouchDriver {
 public:
@@ -61,7 +63,7 @@ private:
     i2c_master_dev_handle_t dev_;
 };
 
-class FreenoveESP32S3 : public WifiBoard {
+class MariaAi : public WifiBoard {
 private:
     Button boot_button_;
     LcdDisplay *display_;
@@ -69,12 +71,49 @@ private:
     TouchDriver touch_;
     AdcBatteryMonitor* adc_battery_monitor_;
 
+bool web_server_started_ = false;
+
+static void WebServerTask(void* param) {
+    auto* board = static_cast<MariaAi*>(param);
+    auto& wifi = WifiManager::GetInstance();
+
+    ESP_LOGI(TAG, "WebServerTask started, waiting for WiFi...");
+
+    while (true) {
+        bool config = wifi.IsConfigMode();
+        bool connected = wifi.IsConnected();
+
+        ESP_LOGI(TAG, "WebServerTask: config=%d, connected=%d",
+                 (int)config, (int)connected);
+
+        // Pornim serverul doar cÃ¢nd:
+        // - NU suntem Ã®n config mode (hotspot)
+        // - suntem conectaÈ›i la router
+        if (!config && connected) {
+            ESP_LOGI(TAG, "Conditions met â†’ Starting WebServer");
+
+            if (board->GetDisplay()) {
+                board->GetDisplay()->ShowNotification("Webserver started");
+            }
+
+            start_webserver();
+            break;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    vTaskDelete(nullptr);
+}
+
+	
+	
     void InitializeBatteryMonitor() {
         adc_battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_1, ADC_CHANNEL_8, 200000, 200000, GPIO_NUM_NC);
     }
 
     static void TouchTask(void *arg) {
-        auto *self = static_cast<FreenoveESP32S3*>(arg);
+        auto *self = static_cast<MariaAi*>(arg);
         auto &app = Application::GetInstance();
 
         uint32_t last_tap = 0;
@@ -201,7 +240,7 @@ private:
     }
 
 public:
-    FreenoveESP32S3(): boot_button_(BOOT_BUTTON_GPIO)
+    MariaAi(): boot_button_(BOOT_BUTTON_GPIO)
     {
         InitializeI2c();
         InitializeBatteryMonitor();
@@ -215,6 +254,13 @@ public:
 		// Montezi SD cardul
 		vTaskDelay(pdMS_TO_TICKS(3000));  // 1 s pentru stabilizare alimentare SDMMC
 		sd_card_mount();
+        // Pornim task-ul de webserver o singurÄƒ datÄƒ
+if (!web_server_started_) {
+    web_server_started_ = true;
+    ESP_LOGI(TAG, "Creating WebServerTask...");
+    xTaskCreate(WebServerTask, "webserver_task", 4096, this, 5, nullptr);
+}
+
     }
 
 
@@ -246,4 +292,4 @@ public:
     }
 };
 
-DECLARE_BOARD(FreenoveESP32S3);
+DECLARE_BOARD(MariaAi);
