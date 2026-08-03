@@ -1,4 +1,5 @@
 tmp/
+components/
 managed_components/
 build/
 dist/
@@ -14,5 +15,6 @@ main/mmap_generate_emoji.h
 .DS_Store
 .cache
 *.pyc
+*.bin
 mmap_generate_*.h
 .clangd
