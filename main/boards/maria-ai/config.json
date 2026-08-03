@@ -12,7 +12,7 @@
                 "CONFIG_FATFS_MAX_LFN=255",
                 "CONFIG_FATFS_CODEPAGE=437",
 				"CONFIG_FLASH_CUSTOM_ASSETS=y",
-				"CONFIG_CUSTOM_ASSETS_FILE=\"${CMAKE_CURRENT_SOURCE_DIR}/boards/maria-ai/assets.bin\"",
+				"CONFIG_CUSTOM_ASSETS_FILE=\"${CMAKE_CURRENT_SOURCE_DIR}/main/boards/maria-ai/assets.bin\"",
 
                 "CONFIG_LANGUAGE_RO_RO=y",
                 "CONFIG_SR_WN_WN9_SOPHIA_TTS=y"
