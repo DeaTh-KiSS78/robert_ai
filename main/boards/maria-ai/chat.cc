@@ -1,7 +1,7 @@
 #include "chat.h"
 #include "esp_log.h"
-#include "application.h"
 #include "cJSON.h"
+#include "mcp_server.h"
 
 static const char *TAG = "chat_api";
 
@@ -10,11 +10,9 @@ static const char *TAG = "chat_api";
  ******************************************************************/
 static esp_err_t chat_wake_handler(httpd_req_t *req)
 {
-    auto &app = Application::GetInstance();
-
     // Trimitem exact mesajul hello folosit de audio
     const char *hello = "{\"type\":\"hello\",\"version\":3,\"transport\":\"udp\"}";
-    app.protocol_->SendText(hello);
+    McpServer::GetInstance().SendCustomMessage(hello);
 
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
@@ -47,8 +45,8 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    auto &app = Application::GetInstance();
-    app.protocol_->SendText(msg->valuestring);
+    // Trimitem textul către Xiao prin MCP
+    McpServer::GetInstance().SendCustomMessage(msg->valuestring);
 
     cJSON_Delete(root);
 
