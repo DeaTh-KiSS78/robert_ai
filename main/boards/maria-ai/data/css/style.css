@@ -130,3 +130,101 @@ input[type="password"] {
 .reset-sticky:hover {
   background: #ffd900;
 }
+
+
+/************************************************************
+ * CHAT WINDOW
+ ************************************************************/
+.chat-window {
+    width: 90%;
+    max-width: 500px;
+    height: 350px;
+    border: 2px solid #444;
+    border-radius: 10px;
+    overflow-y: auto;
+    background: #111;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+/************************************************************
+ * CHAT MESSAGES
+ ************************************************************/
+.chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/************************************************************
+ * CHAT BUBBLES
+ ************************************************************/
+.bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 80%;
+    font-size: 16px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.bubble-user {
+    background: #2b6eff;
+    color: white;
+    align-self: flex-end;
+}
+
+.bubble-xiao {
+    background: #333;
+    color: #eee;
+    align-self: flex-start;
+}
+
+/************************************************************
+ * INPUT AREA
+ ************************************************************/
+.chat-input-area {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.chat-input {
+    width: 70%;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+.chat-send-btn {
+    padding: 10px 14px;
+    background: #0078ff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.chat-send-btn:hover {
+    background: #005fcc;
+}
+
+/************************************************************
+ * WAKE BUTTON
+ ************************************************************/
+.wake-btn {
+    padding: 12px 20px;
+    background: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.wake-btn:hover {
+    background: #e68a00;
+}
