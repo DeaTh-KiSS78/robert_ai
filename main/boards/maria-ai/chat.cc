@@ -1,7 +1,7 @@
 #include "chat.h"
 #include "esp_log.h"
+#include "application.h"
 #include "cJSON.h"
-#include "mcp_server.h"
 
 static const char *TAG = "chat_api";
 
@@ -10,9 +10,11 @@ static const char *TAG = "chat_api";
  ******************************************************************/
 static esp_err_t chat_wake_handler(httpd_req_t *req)
 {
-    // Trimitem exact mesajul hello folosit de audio
-    const char *hello = "{\"type\":\"hello\",\"version\":3,\"transport\":\"udp\"}";
-    McpServer::GetInstance().SendCustomMessage(hello);
+    auto &app = Application::GetInstance();
+
+    // Mesaj hello identic cu cel folosit de protocol
+    const char *hello = "{\"jsonrpc\":\"2.0\",\"method\":\"hello\",\"params\":{\"version\":3,\"transport\":\"udp\"},\"id\":1}";
+    app.SendMcpMessage(hello);
 
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
@@ -45,9 +47,24 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    // Trimitem textul către Xiao prin MCP
-    McpServer::GetInstance().SendCustomMessage(msg->valuestring);
+    auto &app = Application::GetInstance();
 
+    // Construim MCP message
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "jsonrpc", "2.0");
+    cJSON_AddStringToObject(out, "method", "custom");
+
+    cJSON *params = cJSON_CreateObject();
+    cJSON_AddStringToObject(params, "payload", msg->valuestring);
+    cJSON_AddItemToObject(out, "params", params);
+
+    cJSON_AddNumberToObject(out, "id", 1);
+
+    char *json_str = cJSON_PrintUnformatted(out);
+    app.SendMcpMessage(json_str);
+
+    cJSON_free(json_str);
+    cJSON_Delete(out);
     cJSON_Delete(root);
 
     httpd_resp_sendstr(req, "OK");
