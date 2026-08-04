@@ -120,16 +120,17 @@ endchoice
 choice BOARD_TYPE
     prompt "Target Board"
     default BOARD_TYPE_BREAD_COMPACT_ESP32 if IDF_TARGET_ESP32
-    default BOARD_TYPE_XMINI_C3_V3 if IDF_TARGET_ESP32C3
-    default BOARD_TYPE_ESP_SENSAIRSHUTTLE if IDF_TARGET_ESP32C5
-    default BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_2_06 if IDF_TARGET_ESP32C6
     default BOARD_TYPE_BREAD_COMPACT_WIFI if IDF_TARGET_ESP32S3
-    default BOARD_TYPE_ESP32_P4_FUNCTION_EV_BOARD if IDF_TARGET_ESP32P4
-    default BOARD_TYPE_ESP32_S31_FUNCTION_COREBOARD_1 if IDF_TARGET_ESP32S31
     help
         Select the physical board hardware implementation.
         The OTA board type and firmware variant name are configured separately.
 
+    config BOARD_TYPE_MARIA_AI
+        bool "Maria"
+        depends on IDF_TARGET_ESP32S3
+    config BOARD_TYPE_ROBERT_AI
+        bool "Robert"
+        depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_ATK_DNESP32S3
         bool "Alientek ATK-DNESP32S3 Development Board (正点原子)"
         depends on IDF_TARGET_ESP32S3
