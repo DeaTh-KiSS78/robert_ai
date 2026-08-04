@@ -12,9 +12,12 @@ static esp_err_t chat_wake_handler(httpd_req_t *req)
 {
     auto &app = Application::GetInstance();
 
-    // Mesaj hello identic cu cel folosit de protocol
-    const char *hello = "{\"jsonrpc\":\"2.0\",\"method\":\"hello\",\"params\":{\"version\":3,\"transport\":\"udp\"},\"id\":1}";
-    app.SendMcpMessage(hello);
+    // MCP JSONRPC wake message
+    const char *wake_msg =
+        "{\"jsonrpc\":\"2.0\",\"method\":\"custom/wake\","
+        "\"params\":{\"message\":\"hello\"},\"id\":1}";
+
+    app.SendMcpMessage(wake_msg);
 
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
@@ -49,10 +52,10 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
 
     auto &app = Application::GetInstance();
 
-    // Construim MCP message
+    // Build MCP JSONRPC message
     cJSON *out = cJSON_CreateObject();
     cJSON_AddStringToObject(out, "jsonrpc", "2.0");
-    cJSON_AddStringToObject(out, "method", "custom");
+    cJSON_AddStringToObject(out, "method", "custom/text");
 
     cJSON *params = cJSON_CreateObject();
     cJSON_AddStringToObject(params, "payload", msg->valuestring);
