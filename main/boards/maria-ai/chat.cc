@@ -12,12 +12,11 @@ static esp_err_t chat_wake_handler(httpd_req_t *req)
 {
     auto &app = Application::GetInstance();
 
-    // MCP JSONRPC wake message
-    const char *wake_msg =
-        "{\"jsonrpc\":\"2.0\",\"method\":\"custom/wake\","
-        "\"params\":{\"message\":\"hello\"},\"id\":1}";
+    // Mesaj hello identic cu handshake-ul WebSocket
+    const char *hello =
+        "{\"type\":\"hello\",\"version\":3,\"transport\":\"websocket\"}";
 
-    app.SendMcpMessage(wake_msg);
+    app.SendChatText(hello);
 
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
@@ -52,19 +51,13 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
 
     auto &app = Application::GetInstance();
 
-    // Build MCP JSONRPC message
+    // Construim mesajul custom pe care Xiao îl înțelege
     cJSON *out = cJSON_CreateObject();
-    cJSON_AddStringToObject(out, "jsonrpc", "2.0");
-    cJSON_AddStringToObject(out, "method", "custom/text");
-
-    cJSON *params = cJSON_CreateObject();
-    cJSON_AddStringToObject(params, "payload", msg->valuestring);
-    cJSON_AddItemToObject(out, "params", params);
-
-    cJSON_AddNumberToObject(out, "id", 1);
+    cJSON_AddStringToObject(out, "type", "custom");
+    cJSON_AddStringToObject(out, "payload", msg->valuestring);
 
     char *json_str = cJSON_PrintUnformatted(out);
-    app.SendMcpMessage(json_str);
+    app.SendChatText(json_str);
 
     cJSON_free(json_str);
     cJSON_Delete(out);

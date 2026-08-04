@@ -55,6 +55,17 @@ Application::~Application() {
 
 bool Application::SetDeviceState(DeviceState state) { return state_machine_.TransitionTo(state); }
 
+bool Application::SendChatText(const std::string& text)
+{
+    if (!protocol_) {
+        ESP_LOGE(TAG, "Protocol not initialized");
+        return false;
+    }
+    return protocol_->SendText(text);
+}
+
+
+
 void Application::Initialize() {
     auto& board = Board::GetInstance();
     SetDeviceState(kDeviceStateStarting);

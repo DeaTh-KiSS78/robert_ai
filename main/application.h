@@ -123,6 +123,9 @@ public:
      */
     void ResetProtocol();
 
+	bool SendChatText(const std::string& text);
+
+
 private:
     Application();
     ~Application();
