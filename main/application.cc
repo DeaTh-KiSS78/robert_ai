@@ -61,7 +61,15 @@ bool Application::SendChatText(const std::string& text)
         ESP_LOGE(TAG, "Protocol not initialized");
         return false;
     }
-    return protocol_->SendText(text);
+
+    // WebSocketProtocol are SendText PUBLIC
+    auto ws = dynamic_cast<WebsocketProtocol*>(protocol_.get());
+    if (!ws) {
+        ESP_LOGE(TAG, "WebSocket protocol not active");
+        return false;
+    }
+
+    return ws->SendText(text);
 }
 
 
