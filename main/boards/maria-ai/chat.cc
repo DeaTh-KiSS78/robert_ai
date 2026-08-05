@@ -1,6 +1,7 @@
 #include "chat.h"
 #include "esp_log.h"
 #include "application.h"
+#include "protocols/websocket_protocol.h"
 #include "cJSON.h"
 
 static const char *TAG = "chat_api";
@@ -11,12 +12,19 @@ static const char *TAG = "chat_api";
 static esp_err_t chat_wake_handler(httpd_req_t *req)
 {
     auto &app = Application::GetInstance();
+    auto ws = dynamic_cast<WebsocketProtocol*>(app.GetProtocol());
+
+    if (!ws) {
+        ESP_LOGE(TAG, "WebSocket protocol not active");
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "WebSocket not active");
+        return ESP_FAIL;
+    }
 
     // Mesaj hello identic cu handshake-ul WebSocket
     const char *hello =
         "{\"type\":\"hello\",\"version\":3,\"transport\":\"websocket\"}";
 
-    app.SendChatText(hello);
+    ws->SendChatText(hello);
 
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
@@ -50,6 +58,13 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
     }
 
     auto &app = Application::GetInstance();
+    auto ws = dynamic_cast<WebsocketProtocol*>(app.GetProtocol());
+
+    if (!ws) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "WebSocket not active");
+        return ESP_FAIL;
+    }
 
     // Construim mesajul custom pe care Xiao îl înțelege
     cJSON *out = cJSON_CreateObject();
@@ -57,7 +72,7 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
     cJSON_AddStringToObject(out, "payload", msg->valuestring);
 
     char *json_str = cJSON_PrintUnformatted(out);
-    app.SendChatText(json_str);
+    ws->SendChatText(json_str);
 
     cJSON_free(json_str);
     cJSON_Delete(out);

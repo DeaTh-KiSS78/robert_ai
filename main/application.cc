@@ -55,25 +55,6 @@ Application::~Application() {
 
 bool Application::SetDeviceState(DeviceState state) { return state_machine_.TransitionTo(state); }
 
-bool Application::SendChatText(const std::string& text)
-{
-    if (!protocol_) {
-        ESP_LOGE(TAG, "Protocol not initialized");
-        return false;
-    }
-
-    // WebSocketProtocol are SendText PUBLIC
-    auto ws = dynamic_cast<WebsocketProtocol*>(protocol_.get());
-    if (!ws) {
-        ESP_LOGE(TAG, "WebSocket protocol not active");
-        return false;
-    }
-
-    return ws->SendText(text);
-}
-
-
-
 void Application::Initialize() {
     auto& board = Board::GetInstance();
     SetDeviceState(kDeviceStateStarting);

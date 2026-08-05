@@ -67,6 +67,11 @@ bool WebsocketProtocol::SendText(const std::string& text) {
     return true;
 }
 
+bool WebsocketProtocol::SendChatText(const std::string& text)
+{
+    return SendText(text);   // aici ai voie, pentru că ești în interiorul clasei
+}
+
 bool WebsocketProtocol::IsAudioChannelOpened() const {
     return websocket_ != nullptr && websocket_->IsConnected() && !error_occurred_ && !IsTimeout();
 }

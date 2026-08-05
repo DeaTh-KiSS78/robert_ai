@@ -123,9 +123,9 @@ public:
      */
     void ResetProtocol();
 
-	bool SendChatText(const std::string& text);
-
-
+    // ⭐⭐ AICI O ADAUGI ⭐⭐
+    Protocol* GetProtocol() { return protocol_.get(); }
+	
 private:
     Application();
     ~Application();
