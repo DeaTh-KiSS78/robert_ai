@@ -2,36 +2,13 @@
 #include "esp_log.h"
 #include "application.h"
 #include "protocols/websocket_protocol.h"
+#include "audio_service.h"
 #include "cJSON.h"
 
 static const char *TAG = "chat_api";
 
 /******************************************************************
- *  WAKE XIAO (text wake)
- ******************************************************************/
-static esp_err_t chat_wake_handler(httpd_req_t *req)
-{
-    auto &app = Application::GetInstance();
-    auto ws = dynamic_cast<WebsocketProtocol*>(app.GetProtocol());
-
-    if (!ws) {
-        ESP_LOGE(TAG, "WebSocket protocol not active");
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "WebSocket not active");
-        return ESP_FAIL;
-    }
-
-    // Mesaj hello identic cu handshake-ul WebSocket
-    const char *hello =
-        "{\"type\":\"hello\",\"version\":3,\"transport\":\"websocket\"}";
-
-    ws->SendChatText(hello);
-
-    httpd_resp_sendstr(req, "OK");
-    return ESP_OK;
-}
-
-/******************************************************************
- *  SEND TEXT MESSAGE
+ *  SEND TEXT MESSAGE + SILENT PCM
  ******************************************************************/
 static esp_err_t chat_send_handler(httpd_req_t *req)
 {
@@ -66,7 +43,7 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    // Construim mesajul custom pe care Xiao îl înțelege
+    // Construim mesajul custom pe care Xiaozhi îl înțelege
     cJSON *out = cJSON_CreateObject();
     cJSON_AddStringToObject(out, "type", "custom");
     cJSON_AddStringToObject(out, "payload", msg->valuestring);
@@ -78,6 +55,15 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
     cJSON_Delete(out);
     cJSON_Delete(root);
 
+    /******************************************************************
+     *  Injectăm silent PCM ca input audio
+     ******************************************************************/
+    int16_t silent_pcm[16000 * 0.02]; // 20ms la 16kHz
+    memset(silent_pcm, 0, sizeof(silent_pcm));
+
+    auto &audio = AudioService::GetInstance();
+    audio.PushInputPCM((uint8_t*)silent_pcm, sizeof(silent_pcm));
+
     httpd_resp_sendstr(req, "OK");
     return ESP_OK;
 }
@@ -87,13 +73,6 @@ static esp_err_t chat_send_handler(httpd_req_t *req)
  ******************************************************************/
 void chat_register_routes(httpd_handle_t server)
 {
-    static const httpd_uri_t wake_uri = {
-        .uri = "/chat/wake",
-        .method = HTTP_POST,
-        .handler = chat_wake_handler,
-        .user_ctx = NULL
-    };
-
     static const httpd_uri_t send_uri = {
         .uri = "/chat/send",
         .method = HTTP_POST,
@@ -102,6 +81,5 @@ void chat_register_routes(httpd_handle_t server)
     };
 
     ESP_LOGI(TAG, "Registering chat API routes");
-    httpd_register_uri_handler(server, &wake_uri);
     httpd_register_uri_handler(server, &send_uri);
 }
