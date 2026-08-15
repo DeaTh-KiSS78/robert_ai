@@ -23,6 +23,8 @@
 //Pini Butoane
 #define BOOT_BUTTON_GPIO GPIO_NUM_0
 #define BUILTIN_LED_GPIO GPIO_NUM_42
+#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_2
+#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_3
 
 //Secțiunea de afișare a ecranului
 #define DISPLAY_BACKLIGHT_PIN GPIO_NUM_45
@@ -59,6 +61,11 @@
  #define SD_MMC_D2  GPIO_NUM_48
  #define SD_MMC_D3  GPIO_NUM_47
 
+// A MCP Test: Control a lamp
+#define LAMP_GPIO GPIO_NUM_14
+
+// ===================== DHT11 SENSOR =====================
+#define DHT11_PIN        GPIO_NUM_21
 
 
 #endif  // _BOARD_CONFIG_H_

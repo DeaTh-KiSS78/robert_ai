@@ -20,7 +20,6 @@ public:
     bool OpenAudioChannel() override;
     void CloseAudioChannel(bool send_goodbye = true) override;
     bool IsAudioChannelOpened() const override;
-    bool SendChatText(const std::string& text);
 
 private:
     EventGroupHandle_t event_group_handle_;

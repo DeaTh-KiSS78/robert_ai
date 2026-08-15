@@ -123,9 +123,6 @@ public:
      */
     void ResetProtocol();
 
-    // ⭐⭐ AICI O ADAUGI ⭐⭐
-    Protocol* GetProtocol() { return protocol_.get(); }
-	
 private:
     Application();
     ~Application();

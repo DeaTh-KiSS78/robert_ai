@@ -10,6 +10,8 @@
 #include "button.h"
 #include "config.h"
 #include "mcp_server.h"
+#include "lamp_controller.h"
+#include "assets/lang_config.h"
 #include "adc_battery_monitor.h"
 #include "sd_card.h"
 #include "http_server.h"
@@ -27,6 +29,7 @@
 #include "esp_lcd_ili9341.h"
 
 #define TAG "MariaAi"
+
 
 class TouchDriver {
 public:
@@ -66,6 +69,8 @@ private:
 class MariaAi : public WifiBoard {
 private:
     Button boot_button_;
+    Button volume_up_button_;
+    Button volume_down_button_;
     LcdDisplay *display_;
     i2c_master_bus_handle_t codec_i2c_bus_;
     TouchDriver touch_;
@@ -90,7 +95,7 @@ static void WebServerTask(void* param) {
         // - NU suntem Ã®n config mode (hotspot)
         // - suntem conectaÈ›i la router
         if (!config && connected) {
-            ESP_LOGI(TAG, "Conditions met â†’ Starting WebServer");
+            ESP_LOGI(TAG, "Conditions met. Starting WebServer");
 
             if (board->GetDisplay()) {
                 board->GetDisplay()->ShowNotification("Webserver started");
@@ -119,43 +124,69 @@ static void WebServerTask(void* param) {
         uint32_t last_tap = 0;
         uint32_t down_start = 0;
         bool down = false;
+        uint16_t last_y = 0;
+        bool is_sliding = false;
+        int slide_mode = 0; // 1: brightness, 2: volume
 
         while (true) {
             bool t;
             uint16_t x, y;
-            self->touch_.Read(t, x, y);
+            if (self->touch_.Read(t, x, y)) {
+                uint32_t now = esp_timer_get_time() / 1000;
 
-            uint32_t now = esp_timer_get_time() / 1000;
-
-            if (t) {
-                if (!down) {
-                    down = true;
-                    down_start = now;
-                }
-            }
-
-            if (!t && down) {
-                down = false;
-
-                uint32_t press = now - down_start;
-
-                // long tap
-                if (press > 3000) {
-                    self->EnterWifiConfigMode();
-                } else {
-                    // double tap
-                    if (now - last_tap < 250) {
-                        app.StartListening();
-                        last_tap = 0;
+                if (t) {
+                    if (!down) {
+                        down = true;
+                        down_start = now;
+                        last_y = y;
+                        is_sliding = false;
+                        // Map touch coordinates to display orientation
+                        if (x < 60) slide_mode = 1;
+                        else if (x > 180) slide_mode = 2;
+                        else slide_mode = 0;
                     } else {
-                        // single tap
-                        app.ToggleChatState();
-                        last_tap = now;
+                        // Slide detection
+                        int dy = (int)y - (int)last_y;
+                        if (std::abs(dy) > 10) {
+                            if (slide_mode == 1) {
+                                is_sliding = true;
+                                int b = self->GetBacklight()->brightness();
+                                b -= dy / 5;
+                                if (b < 1) b = 1;
+                                if (b > 100) b = 100;
+                                self->GetBacklight()->SetBrightness(b);
+                            } else if (slide_mode == 2) {
+                                is_sliding = true;
+                                auto codec = self->GetAudioCodec();
+                                int v = codec->output_volume();
+                                v -= dy / 5;
+                                if (v < 0) v = 0;
+                                if (v > 100) v = 100;
+                                codec->SetOutputVolume(v);
+                            }
+                            last_y = y;
+                        }
+                    }
+                }
+
+                if (!t && down) {
+                    down = false;
+                    if (!is_sliding) {
+                        uint32_t press = now - down_start;
+                        if (press > 3000) {
+                            self->EnterWifiConfigMode();
+                        } else if (now - last_tap < 250) {
+                            app.StartListening();
+                            last_tap = 0;
+                        } else {
+                            app.ToggleChatState();
+                            last_tap = now;
+                        }
                     }
                 }
             }
 
-            vTaskDelay(pdMS_TO_TICKS(50));
+            vTaskDelay(pdMS_TO_TICKS(20));
         }
     }
 
@@ -193,13 +224,48 @@ static void WebServerTask(void* param) {
 
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
-            auto &app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting) {
+            auto& app = Application::GetInstance();
+             // During startup (before connected), pressing BOOT button enters Wi-Fi config mode without reboot
+           if (app.GetDeviceState() == kDeviceStateStarting) {
                 EnterWifiConfigMode();
+                return;
             }
             app.ToggleChatState();
         });
-    }
+ 
+        volume_up_button_.OnClick([this]() {
+            auto codec = GetAudioCodec();
+            auto volume = codec->output_volume() + 10;
+            if (volume > 100) {
+                volume = 100;
+            }
+            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
+            codec->SetOutputVolume(volume);
+            
+        });
+
+        volume_up_button_.OnLongPress([this]() {
+            GetAudioCodec()->SetOutputVolume(100);
+            GetDisplay()->ShowNotification(Lang::Strings::MAX_VOLUME);
+        });
+
+        volume_down_button_.OnClick([this]() {
+            auto codec = GetAudioCodec();
+            auto volume = codec->output_volume() - 10;
+            if (volume < 0) {
+                volume = 0;
+            }
+            codec->SetOutputVolume(volume);
+            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
+        });
+
+        volume_down_button_.OnLongPress([this]() {
+            GetAudioCodec()->SetOutputVolume(0);
+            GetDisplay()->ShowNotification(Lang::Strings::MUTED);
+        });
+
+ }
+
 
     void InitializeLcdDisplay() {
         esp_lcd_panel_io_handle_t panel_io = nullptr;
@@ -236,12 +302,16 @@ static void WebServerTask(void* param) {
             DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
     }
 
+    // 物联网初始化，添加对 AI 可见设备
     void InitializeTools() {
+        static LampController lamp(LAMP_GPIO);
     }
 
 public:
-    MariaAi(): boot_button_(BOOT_BUTTON_GPIO)
-    {
+    MariaAi():
+    boot_button_(BOOT_BUTTON_GPIO),
+    volume_up_button_(VOLUME_UP_BUTTON_GPIO),
+    volume_down_button_(VOLUME_DOWN_BUTTON_GPIO) {
         InitializeI2c();
         InitializeBatteryMonitor();
         InitializeSpi();
@@ -250,6 +320,7 @@ public:
         InitializeButtons();
         InitializeTools();
         GetBacklight()->SetBrightness(100);
+
 
 		// Montezi SD cardul
 		vTaskDelay(pdMS_TO_TICKS(3000));  // 1 s pentru stabilizare alimentare SDMMC

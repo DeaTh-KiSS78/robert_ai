@@ -16,6 +16,10 @@ import re
 import shutil
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
@@ -29,6 +33,9 @@ ARTIFACTS = {
     "ota": Path("build/xiaozhi.bin"),
     "full": Path("build/merged-binary.bin"),
 }
+UPLOAD_MAX_ATTEMPTS = 4
+UPLOAD_BASE_DELAY_SECONDS = 1
+UPLOAD_TIMEOUT_SECONDS = 120
 
 
 def utc_now() -> str:
@@ -40,42 +47,19 @@ def env(name: str) -> str | None:
     return value.strip() if value and value.strip() else None
 
 
-def env_enabled(name: str) -> bool:
-    return (env(name) or "").casefold() in {"1", "true", "yes", "on"}
-
-
-def oss_config() -> dict[str, str] | None:
-    if not env_enabled("FIRMWARE_OSS_UPLOAD"):
+def upload_config() -> dict[str, str] | None:
+    upload_url = env("FIRMWARE_UPLOAD_URL")
+    upload_token = env("FIRMWARE_UPLOAD_TOKEN")
+    if not upload_url and not upload_token:
         return None
-
-    values = {
-        "access_key_id": env("OSS_ACCESS_KEY_ID"),
-        "access_key_secret": env("OSS_ACCESS_KEY_SECRET"),
-        "bucket": env("OSS_BUCKET_NAME"),
-        "endpoint": env("FIRMWARE_OSS_ENDPOINT"),
-        "prefix": env("FIRMWARE_OSS_PREFIX") or "custom_firmwares",
-    }
-    missing = [name for name, value in values.items() if not value]
-    if missing:
+    if not upload_url or not upload_token:
         raise ValueError(
-            "OSS upload is enabled but configuration is missing: "
-            + ", ".join(missing)
+            "FIRMWARE_UPLOAD_URL and FIRMWARE_UPLOAD_TOKEN must be configured together"
         )
-
-    prefix = str(values["prefix"]).strip("/")
-    if not prefix or ".." in Path(prefix).parts:
-        raise ValueError(f"Invalid OSS prefix: {prefix!r}")
-    endpoint = str(values["endpoint"])
-    if not endpoint.startswith(("http://", "https://")):
-        endpoint = "https://" + endpoint
-
-    return {
-        "access_key_id": str(values["access_key_id"]),
-        "access_key_secret": str(values["access_key_secret"]),
-        "bucket": str(values["bucket"]),
-        "endpoint": endpoint,
-        "prefix": prefix,
-    }
+    parsed_url = urllib.parse.urlparse(upload_url)
+    if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+        raise ValueError("FIRMWARE_UPLOAD_URL must be an absolute HTTP(S) URL")
+    return {"url": upload_url.rstrip("/"), "token": upload_token}
 
 
 def parser() -> argparse.ArgumentParser:
@@ -83,13 +67,19 @@ def parser() -> argparse.ArgumentParser:
         description=(
             "Build one XiaoZhi firmware board configuration. Arguments may also "
             "be supplied through FIRMWARE_BOARD_DIR, FIRMWARE_BOARD_NAME, "
-            "FIRMWARE_LANGUAGE, and FIRMWARE_WAKE_WORD."
+            "FIRMWARE_LANGUAGE, FIRMWARE_WAKE_WORD, and "
+            "FIRMWARE_BUILD_OPTIONS."
         )
     )
     result.add_argument("--board-dir", default=env("FIRMWARE_BOARD_DIR"))
     result.add_argument("--board-name", default=env("FIRMWARE_BOARD_NAME"))
     result.add_argument("--language", default=env("FIRMWARE_LANGUAGE"))
     result.add_argument("--wake-word", default=env("FIRMWARE_WAKE_WORD"))
+    result.add_argument(
+        "--build-options-json",
+        default=env("FIRMWARE_BUILD_OPTIONS") or "{}",
+        help="Curated semantic build options as a JSON object",
+    )
     result.add_argument(
         "--source-dir",
         type=Path,
@@ -134,6 +124,30 @@ def validate(args: argparse.Namespace) -> None:
     if not SAFE_WAKE_WORD.fullmatch(normalized_wake_word):
         raise ValueError(f"Invalid wake word: {args.wake_word!r}")
     args.wake_word = normalized_wake_word
+
+    try:
+        build_options = json.loads(args.build_options_json)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Invalid build options JSON: {error}") from error
+    if not isinstance(build_options, dict):
+        raise ValueError("Build options JSON must contain an object")
+    invalid_values = [
+        key
+        for key, value in build_options.items()
+        if not isinstance(key, str) or not isinstance(value, (str, bool))
+    ]
+    if invalid_values:
+        raise ValueError(
+            "Build option values must be strings or booleans: "
+            + ", ".join(map(str, invalid_values))
+        )
+    args.build_options = build_options
+    args.build_options_json = json.dumps(
+        build_options,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
     build_script = args.source_dir / "scripts/build.py"
     if not build_script.is_file():
@@ -251,47 +265,116 @@ def write_manifest(output_dir: Path, manifest: dict[str, object]) -> None:
     temporary.replace(path)
 
 
+def failure_summary(log_path: Path) -> str:
+    """Extract a concise actionable failure from a compiler log."""
+    if not log_path.is_file():
+        return "Firmware build failed"
+    ansi_escape = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+    lines = [
+        ansi_escape.sub("", line).strip()
+        for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    ]
+    meaningful = [
+        line for line in lines
+        if line
+        and not line.startswith(("XIAOZHI_STAGE ", "XIAOZHI_SOURCE_REVISION "))
+    ]
+    patterns = (
+        re.compile(r"(?:fatal error|error:|ValueError:|RuntimeError:|FileNotFoundError:)", re.I),
+        re.compile(r"(?:Kconfig rejected|Unsupported build option|build stopped|failed with exit code)", re.I),
+    )
+    for pattern in patterns:
+        for line in reversed(meaningful):
+            if pattern.search(line):
+                return line[:500]
+    return meaningful[-1][:500] if meaningful else "Firmware build failed"
+
+
+def is_retryable_upload_error(error: Exception) -> bool:
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in {408, 429} or error.code >= 500
+    return isinstance(
+        error,
+        (urllib.error.URLError, ConnectionError, TimeoutError, OSError),
+    )
+
+
+def upload_file_with_retry(
+    upload_url: str,
+    upload_token: str,
+    local_path: Path,
+) -> None:
+    payload = local_path.read_bytes()
+    request = urllib.request.Request(
+        upload_url,
+        data=payload,
+        method="PUT",
+        headers={
+            "Authorization": f"Bearer {upload_token}",
+            "Content-Type": "application/octet-stream",
+            "Content-Length": str(len(payload)),
+            "X-Artifact-SHA256": hashlib.sha256(payload).hexdigest(),
+        },
+    )
+    for attempt in range(1, UPLOAD_MAX_ATTEMPTS + 1):
+        try:
+            with urllib.request.urlopen(
+                request,
+                timeout=UPLOAD_TIMEOUT_SECONDS,
+            ) as response:
+                response.read()
+            return
+        except Exception as error:
+            retryable = is_retryable_upload_error(error)
+            if isinstance(error, urllib.error.HTTPError):
+                error.close()
+            if (
+                attempt >= UPLOAD_MAX_ATTEMPTS
+                or not retryable
+            ):
+                raise
+            delay = UPLOAD_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+            print(
+                "firmware-builder: transient artifact upload failure for "
+                f"{local_path.name}; retry {attempt + 1}/"
+                f"{UPLOAD_MAX_ATTEMPTS} in {delay}s: {error}",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+
+
 def upload_outputs(
     output_dir: Path,
     manifest: dict[str, Any],
     config: dict[str, str],
 ) -> None:
     if not manifest.get("job_id"):
-        raise ValueError("FIRMWARE_JOB_ID is required when OSS upload is enabled")
-
-    try:
-        import oss2
-    except ImportError as error:
-        raise RuntimeError("oss2 is required for OSS upload") from error
+        raise ValueError("FIRMWARE_JOB_ID is required when artifact upload is enabled")
 
     job_id = str(manifest["job_id"])
     if not SAFE_JOB_ID.fullmatch(job_id):
-        raise ValueError(f"Invalid job ID for OSS upload: {job_id!r}")
+        raise ValueError(f"Invalid job ID for artifact upload: {job_id!r}")
 
-    base_key = f"{config['prefix']}/{job_id}"
     file_names = ["build.log"]
     file_names.extend(str(item["file"]) for item in manifest["artifacts"])
     file_names.append("manifest.json")
-    object_keys = {name: f"{base_key}/{name}" for name in file_names}
-
-    manifest["oss"] = {
-        "bucket": config["bucket"],
-        "endpoint": config["endpoint"],
-        "prefix": base_key,
-        "objects": object_keys,
-    }
     manifest["delivery_status"] = "uploading"
     write_manifest(output_dir, manifest)
 
-    auth = oss2.Auth(config["access_key_id"], config["access_key_secret"])
-    bucket = oss2.Bucket(auth, config["endpoint"], config["bucket"])
     for name in file_names[:-1]:
-        bucket.put_object_from_file(object_keys[name], str(output_dir / name))
+        upload_file_with_retry(
+            f"{config['url']}/{urllib.parse.quote(job_id)}/artifacts/"
+            f"{urllib.parse.quote(name)}",
+            config["token"],
+            output_dir / name,
+        )
 
     manifest["delivery_status"] = "succeeded"
     write_manifest(output_dir, manifest)
-    bucket.put_object_from_file(
-        object_keys["manifest.json"], str(output_dir / "manifest.json")
+    upload_file_with_retry(
+        f"{config['url']}/{urllib.parse.quote(job_id)}/artifacts/manifest.json",
+        config["token"],
+        output_dir / "manifest.json",
     )
 
 
@@ -300,7 +383,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     started_at = utc_now()
     try:
         validate(args)
-        upload_config = oss_config()
+        artifact_upload_config = upload_config()
     except ValueError as error:
         print(f"firmware-builder: {error}", file=sys.stderr)
         return 2
@@ -316,6 +399,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "board_name": args.board_name,
         "language": args.language,
         "wake_word": args.wake_word,
+        "build_options": args.build_options,
         "firmware_version": project_version(args.source_dir),
         "firmware_source_revision": env("FIRMWARE_SOURCE_REVISION") or "unknown",
         "idf_version": command_output(["idf.py", "--version"], args.source_dir),
@@ -336,6 +420,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.language,
         "--wake-word",
         args.wake_word,
+        "--build-options-json",
+        args.build_options_json,
     ]
     return_code = run_and_log(command, args.source_dir, log_path)
     manifest["finished_at"] = utc_now()
@@ -353,17 +439,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             manifest["exit_code"] = return_code
     else:
         manifest["status"] = "failed"
+        manifest["error"] = failure_summary(log_path)
 
     write_manifest(args.output_dir, manifest)
-    if upload_config is not None:
+    if artifact_upload_config is not None:
         try:
             print("XIAOZHI_STAGE uploading", flush=True)
-            upload_outputs(args.output_dir, manifest, upload_config)
+            upload_outputs(args.output_dir, manifest, artifact_upload_config)
         except Exception as error:
-            print(f"firmware-builder: OSS upload failed: {error}", file=sys.stderr)
+            print(f"firmware-builder: artifact upload failed: {error}", file=sys.stderr)
             manifest["status"] = "failed"
             manifest["delivery_status"] = "failed"
-            manifest["error"] = f"OSS upload failed: {error}"
+            manifest["error"] = f"Artifact upload failed: {error}"
             return_code = 1
             manifest["exit_code"] = return_code
             write_manifest(args.output_dir, manifest)
