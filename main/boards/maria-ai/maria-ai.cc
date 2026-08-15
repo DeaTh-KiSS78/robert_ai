@@ -148,21 +148,33 @@ static void WebServerTask(void* param) {
                         // Slide detection
                         int dy = (int)y - (int)last_y;
                         if (std::abs(dy) > 10) {
-                            if (slide_mode == 1) {
-                                is_sliding = true;
-                                int b = self->GetBacklight()->brightness();
-                                b -= dy / 5;
-                                if (b < 1) b = 1;
-                                if (b > 100) b = 100;
-                                self->GetBacklight()->SetBrightness(b);
+                        
+                        if (slide_mode == 1) {
+                            is_sliding = true;
+                            int b = self->GetBacklight()->brightness();
+                            b -= dy / 5;
+                            if (b < 1) b = 1;
+                            if (b > 100) b = 100;
+                            self->GetBacklight()->SetBrightness(b);
+                            
+                            // Afișează luminozitatea pe display
+                            char msg[32];
+                            snprintf(msg, sizeof(msg), "Luminozitate: %d%%", b);
+                            self->GetDisplay()->ShowNotification(msg);
+                            
                             } else if (slide_mode == 2) {
-                                is_sliding = true;
-                                auto codec = self->GetAudioCodec();
-                                int v = codec->output_volume();
-                                v -= dy / 5;
-                                if (v < 0) v = 0;
-                                if (v > 100) v = 100;
-                                codec->SetOutputVolume(v);
+                            is_sliding = true;
+                            auto codec = self->GetAudioCodec();
+                            int v = codec->output_volume();
+                            v -= dy / 5;
+                            if (v < 0) v = 0;
+                            if (v > 100) v = 100;
+                            codec->SetOutputVolume(v);
+                            
+                            // Afișează volumul pe display
+                            char msg[32];
+                            snprintf(msg, sizeof(msg), "Volum: %d%%", v);
+                            self->GetDisplay()->ShowNotification(msg);
                             }
                             last_y = y;
                         }
