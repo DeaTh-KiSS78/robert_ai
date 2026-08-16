@@ -24,12 +24,56 @@
 #include <esp_timer.h>
 #include <wifi_manager.h>      // 🔥 LIPSEA — FIX CRITIC
 
-#include "led/single_led.h"
+#include "led/circular_strip.h"
 #include "system_reset.h"
 #include "esp_lcd_ili9341.h"
 
 #define TAG "MariaAi"
 
+
+class FreenoveLed : public CircularStrip {
+public:
+    FreenoveLed(gpio_num_t gpio) : CircularStrip(gpio, 1) {
+        SetBrightness(80, 10);
+    }
+
+    void OnStateChanged() override {
+        auto& app = Application::GetInstance();
+        switch (app.GetDeviceState()) {
+            case kDeviceStateStarting:
+                Breathe({20,10,0}, {220,100,0}, 30);
+                break;
+            case kDeviceStateWifiConfiguring:
+                Breathe({15,8,0}, {180,80,0}, 30);
+                break;
+            case kDeviceStateConnecting:
+                Breathe({20,10,0}, {220,100,0}, 30);
+                break;
+            case kDeviceStateIdle:
+                FadeOut(30);
+                break;
+            case kDeviceStateListening:
+            case kDeviceStateAudioTesting:
+                Breathe({0,0,10}, {0,60,255}, 30);
+                break;
+            case kDeviceStateSpeaking:
+                Breathe({40,15,0}, {255,180,40}, 30);
+                break;
+            case kDeviceStateUpgrading:
+                Breathe({0,50,30}, {200,100,0}, 30);
+                break;
+            case kDeviceStateActivating:
+                SetAllColor({255,255,255});
+                Blink({255,255,255}, 250);
+                break;
+            case kDeviceStateFatalError:
+                Breathe({40,4,0}, {200,20,0}, 30);
+                break;
+            default:
+                break;
+        }
+    }
+};
 
 class TouchDriver {
 public:
@@ -148,28 +192,26 @@ static void WebServerTask(void* param) {
                         // Slide detection
                         int dy = (int)y - (int)last_y;
                         if (std::abs(dy) > 10) {
-                        
-                        if (slide_mode == 1) {
-                            is_sliding = true;
-                            int b = self->GetBacklight()->brightness();
-                            b -= dy / 5;
-                            if (b < 1) b = 1;
-                            if (b > 100) b = 100;
-                            self->GetBacklight()->SetBrightness(b);
-                            
+                            if (slide_mode == 1) {
+                                is_sliding = true;
+                                int b = self->GetBacklight()->brightness();
+                                b -= dy / 5;
+                                if (b < 1) b = 1;
+                                if (b > 100) b = 100;
+                                self->GetBacklight()->SetBrightness(b);
                             // Afișează luminozitatea pe display
                             char msg[32];
                             snprintf(msg, sizeof(msg), "Luminozitate: %d%%", b);
                             self->GetDisplay()->ShowNotification(msg);
                             
                             } else if (slide_mode == 2) {
-                            is_sliding = true;
-                            auto codec = self->GetAudioCodec();
-                            int v = codec->output_volume();
-                            v -= dy / 5;
-                            if (v < 0) v = 0;
-                            if (v > 100) v = 100;
-                            codec->SetOutputVolume(v);
+                                is_sliding = true;
+                                auto codec = self->GetAudioCodec();
+                                int v = codec->output_volume();
+                                v -= dy / 5;
+                                if (v < 0) v = 0;
+                                if (v > 100) v = 100;
+                                codec->SetOutputVolume(v);
                             
                             // Afișează volumul pe display
                             char msg[32];
@@ -237,10 +279,8 @@ static void WebServerTask(void* param) {
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-             // During startup (before connected), pressing BOOT button enters Wi-Fi config mode without reboot
            if (app.GetDeviceState() == kDeviceStateStarting) {
                 EnterWifiConfigMode();
-                return;
             }
             app.ToggleChatState();
         });
@@ -282,7 +322,7 @@ static void WebServerTask(void* param) {
     void InitializeLcdDisplay() {
         esp_lcd_panel_io_handle_t panel_io = nullptr;
         esp_lcd_panel_handle_t panel = nullptr;
-        // Inițializarea IO-urilor de control al ecranului LCD
+        // 液晶屏控制IO初始化
         ESP_LOGD(TAG, "Install panel IO");
         esp_lcd_panel_io_spi_config_t io_config = {};
         io_config.cs_gpio_num = DISPLAY_CS_PIN;
@@ -294,7 +334,7 @@ static void WebServerTask(void* param) {
         io_config.lcd_param_bits = 8;
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(LCD_SPI_HOST, &io_config, &panel_io));
 
-        // Inițializați cipul driverului ecranului LCD
+        // 初始化液晶屏驱动芯片
         ESP_LOGD(TAG, "Install LCD driver");
         esp_lcd_panel_dev_config_t panel_config = {};
         panel_config.reset_gpio_num = DISPLAY_RST_PIN;
@@ -308,13 +348,17 @@ static void WebServerTask(void* param) {
         esp_lcd_panel_invert_color(panel, DISPLAY_INVERT_COLOR);
         esp_lcd_panel_swap_xy(panel, DISPLAY_SWAP_XY);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
+        esp_lcd_panel_disp_on_off(panel, true);
+#if CONFIG_USE_EMOTE_MESSAGE_STYLE
+        display_ = new emote::EmoteDisplay(panel, panel_io, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+#else
         display_ = new SpiLcdDisplay(panel_io, panel,
             DISPLAY_WIDTH, DISPLAY_HEIGHT,
             DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y,
             DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+#endif
     }
 
-    // 物联网初始化，添加对 AI 可见设备
     void InitializeTools() {
         static LampController lamp(LAMP_GPIO);
     }
@@ -348,7 +392,7 @@ if (!web_server_started_) {
 
 
     virtual Led *GetLed() override {
-        static SingleLed led(BUILTIN_LED_GPIO);
+        static FreenoveLed led(BUILTIN_LED_GPIO);
         return &led;
     }
 
