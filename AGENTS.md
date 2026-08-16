@@ -92,3 +92,35 @@ The build script changes local `sdkconfig` and build state. Do not assume the bu
 - CI matrix: `.github/workflows/build.yml`
 
 Keep detailed or fast-changing information in those files, not here. Add a nested `AGENTS.md` only when a subsystem needs specialized instructions.
+
+## freenove-esp32s3-display-2.8-lcd Branch Context
+
+Branch: `v1.2-freenove`. Freenove ESP32-S3 2.8" (ILI9341, ES8311, XPT2046 touch on I2C 0x38), 16MB flash. Build: `python scripts/release.py freenove-esp32s3-display-2.8-lcd` (single-thread, weak CPU).
+
+### Persist WebSocket
+- `ConnectControlChannel()` after activation, ping/pong 30s, reconnect with exponential backoff (1→60s), `server_initiated_session_` flag
+- See `main/protocols/websocket_protocol.cc`, `main/application.cc`
+
+### AFE Audio Config
+- `AFE_TYPE_FD` + `AFE_MODE_LOW_COST` + `agc_init=true` — do not change to HIGH_PERF or SR (breaks voice after wake word)
+- See `main/audio/engines/afe_audio_engine.cc`
+
+### Battery
+- Voltage-trend via `AdcBatteryMonitor` on `ADC_UNIT_1, ADC_CHANNEL_8`, 200k/200k divider (1:2)
+- TP4054 CHRG pin NOT routed to GPIO
+
+### Custom Assets
+- Pre-built `assets.bin` (7.78MB, 8 GIF + 30pt font) — compatible with v2.4.0
+- `CONFIG_FLASH_CUSTOM_ASSETS=y`, `CUSTOM_ASSETS_FILE="boards/freenove-esp32s3-display-2.8-lcd/assets.bin"`
+
+### OTA
+- Server: `http://192.168.22.102:18792/ota`, upload: `POST /api/firmware/upload`
+- Build + upload: `python scripts/release.py freenove-esp32s3-display-2.8-lcd --upload`
+- See `docs/ota-api.md` for server API contract
+
+### Key Files
+- `main/boards/freenove-esp32s3-display-2.8-lcd/` — board definition, config, assets
+- `main/boards/common/adc_battery_monitor.cc/.h` — battery state machine
+- `docs/server-persistent-ws-spec.md` — persistent WS server spec
+- `docs/ota-api.md` — OTA upload API contract
+- `scripts/ota-upload.sh` — OTA upload script

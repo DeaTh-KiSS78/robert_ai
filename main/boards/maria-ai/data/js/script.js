@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function resetAndReload() {
-    fetch('/reset')
+    fetch('/sd/reset')
       .then(r => r.text())
       .then(t => {
           alert(t);
