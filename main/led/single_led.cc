@@ -4,8 +4,8 @@
 
 #define TAG "SingleLed"
 
-#define DEFAULT_BRIGHTNESS 4
-#define HIGH_BRIGHTNESS 100
+#define DEFAULT_BRIGHTNESS 100
+#define HIGH_BRIGHTNESS 255
 #define LOW_BRIGHTNESS 2
 
 #define BLINK_INFINITE -1
@@ -177,22 +177,22 @@ void SingleLed::OnStateChanged() {
             break;
 
         case kDeviceStateConnecting:
-            SetColor(0, 0, DEFAULT_BRIGHTNESS);
+            SetColor(HIGH_BRIGHTNESS, 0, 0);
             TurnOn();
             break;
 
         case kDeviceStateListening:
         case kDeviceStateAudioTesting:
             if (app.IsVoiceDetected()) {
-                SetColor(HIGH_BRIGHTNESS, 0, 0);
+                SetColor(0, 0, HIGH_BRIGHTNESS);
             } else {
-                SetColor(LOW_BRIGHTNESS, 0, 0);
+                SetColor(0, 0, HIGH_BRIGHTNESS);
             }
             TurnOn();
             break;
 
         case kDeviceStateSpeaking:
-            SetColor(0, DEFAULT_BRIGHTNESS, 0);
+            SetColor(0, HIGH_BRIGHTNESS, 0);
             TurnOn();
             break;
 
