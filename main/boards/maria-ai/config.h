@@ -40,6 +40,7 @@
 #define PCF_PIN_LAMP      7   // Lamp output
 
 // ===================== GPIO BUTTONS (DISABLED) =====================
+#define BUILTIN_LED_GPIO        GPIO_NUM_42
 #define BOOT_BUTTON_GPIO          GPIO_NUM_NC
 #define VOLUME_UP_BUTTON_GPIO     GPIO_NUM_NC
 #define VOLUME_DOWN_BUTTON_GPIO   GPIO_NUM_NC
