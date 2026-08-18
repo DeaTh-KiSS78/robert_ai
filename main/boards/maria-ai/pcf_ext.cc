@@ -1,6 +1,7 @@
 #include "pcf_ext.h"
 #include "application.h"
 #include "display/lcd_display.h"
+#include "i2cdev.h"      // 🔥 necesar pentru i2cdev_init()
 #include <esp_log.h>
 
 #define TAG "PCF_EXT"
@@ -11,18 +12,24 @@ void InitializePcfExt(WifiBoard* board)
 {
     ESP_LOGI(TAG, "Initializing PCF8574...");
 
+    // 🔥 Inițializează driverul i2cdev (obligatoriu pentru esp-idf-lib)
+    ESP_ERROR_CHECK(i2cdev_init());
+
     memset(&pcf_dev, 0, sizeof(i2c_dev_t));
 
+    // Inițializare descriptor PCF8574
     ESP_ERROR_CHECK(pcf8574_init_desc(
         &pcf_dev,
-        0x27,
-        AUDIO_CODEC_I2C_NUM,
-        AUDIO_CODEC_I2C_SDA_PIN,
-        AUDIO_CODEC_I2C_SCL_PIN
+        0x27,                        // Adresa PCF8574
+        AUDIO_CODEC_I2C_NUM,         // Port I2C
+        AUDIO_CODEC_I2C_SDA_PIN,     // SDA
+        AUDIO_CODEC_I2C_SCL_PIN      // SCL
     ));
 
+    // Toți pinii HIGH (input cu pull-up)
     ESP_ERROR_CHECK(pcf8574_port_write(&pcf_dev, 0xFF));
 
+    // Test de comunicare
     uint8_t val = 0;
     esp_err_t err = pcf8574_port_read(&pcf_dev, &val);
 
