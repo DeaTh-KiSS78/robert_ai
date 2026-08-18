@@ -96,7 +96,7 @@ if(CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI)
     set(BUILTIN_ICON_FONT font_material_symbols_14_1)
 
 elseif(CONFIG_BOARD_TYPE_MARIA_AI)
-    set(BOARD_TYPE "robert-ai")
+    set(BOARD_TYPE "maria-ai")
     set(BOARD_DIR "maria-ai")
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_20_4)
     set(BUILTIN_ICON_FONT font_material_symbols_20_4)

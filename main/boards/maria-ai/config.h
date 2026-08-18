@@ -6,30 +6,48 @@
 #define AUDIO_INPUT_SAMPLE_RATE  24000
 #define AUDIO_OUTPUT_SAMPLE_RATE 24000
 
-//Secțiunea audio IIS
-#define AUDIO_I2S_GPIO_MCLK      GPIO_NUM_4  //MCLK
-#define AUDIO_I2S_GPIO_BCLK      GPIO_NUM_5  //SCK
-#define AUDIO_I2S_GPIO_DIN       GPIO_NUM_6  //DIN
-#define AUDIO_I2S_GPIO_WS        GPIO_NUM_7  //LRC
-#define AUDIO_I2S_GPIO_DOUT      GPIO_NUM_8  //DOUT
-#define AUDIO_CODEC_PA_PIN       GPIO_NUM_1  //PA
+// ===================== AUDIO IIS =====================
+#define AUDIO_I2S_GPIO_MCLK      GPIO_NUM_4
+#define AUDIO_I2S_GPIO_BCLK      GPIO_NUM_5
+#define AUDIO_I2S_GPIO_DIN       GPIO_NUM_6
+#define AUDIO_I2S_GPIO_WS        GPIO_NUM_7
+#define AUDIO_I2S_GPIO_DOUT      GPIO_NUM_8
+#define AUDIO_CODEC_PA_PIN       GPIO_NUM_1
 
-//Secțiunea audio IIC
+// ===================== AUDIO I2C =====================
 #define AUDIO_CODEC_I2C_NUM      I2C_NUM_0
 #define AUDIO_CODEC_I2C_SCL_PIN  GPIO_NUM_15
 #define AUDIO_CODEC_I2C_SDA_PIN  GPIO_NUM_16
 #define AUDIO_CODEC_ES8311_ADDR  ES8311_CODEC_DEFAULT_ADDR
 
-//Pini Butoane
-#define BOOT_BUTTON_GPIO GPIO_NUM_0
-#define BUILTIN_LED_GPIO GPIO_NUM_42
-#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_2
-#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_3
-#define BACKLIGHT_UP_BUTTON_GPIO   GPIO_NUM_14
-#define BACKLIGHT_DOWN_BUTTON_GPIO   GPIO_NUM_21
-#define RESET_BUTTON_GPIO   GPIO_NUM_NC
+// ===================== PCF8574 BUTTONS =====================
+// Joystick
+#define PCF_BTN_UP        0   // Volume +
+#define PCF_BTN_DOWN      1   // Volume -
+#define PCF_BTN_LEFT      2   // Backlight -
+#define PCF_BTN_RIGHT     3   // Backlight +
 
-//Secțiunea de afișare a ecranului
+// Middle = BOOT
+#define PCF_BTN_MIDDLE    4   // BOOT (Listen/Idle)
+
+// Set = liber
+#define PCF_BTN_SET       5   // Unused for now
+
+// RST = RESET
+#define PCF_BTN_RST       6   // Software reset
+
+// Lampă
+#define PCF_PIN_LAMP      7   // Lamp output
+
+// ===================== GPIO BUTTONS (DISABLED) =====================
+#define BOOT_BUTTON_GPIO          GPIO_NUM_NC
+#define VOLUME_UP_BUTTON_GPIO     GPIO_NUM_NC
+#define VOLUME_DOWN_BUTTON_GPIO   GPIO_NUM_NC
+#define BACKLIGHT_UP_BUTTON_GPIO  GPIO_NUM_NC
+#define BACKLIGHT_DOWN_BUTTON_GPIO GPIO_NUM_NC
+#define RESET_BUTTON_GPIO         GPIO_NUM_NC
+
+// ===================== LCD DISPLAY =====================
 #define DISPLAY_BACKLIGHT_PIN GPIO_NUM_45
 
 #define DISPLAY_RST_PIN       GPIO_NUM_NC
@@ -55,20 +73,18 @@
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT false
 #define DISPLAY_SPI_MODE      0
 
-//Secțiunea SD Card
+// ===================== SD CARD =====================
+#define SD_MMC_CMD GPIO_NUM_40
+#define SD_MMC_CLK GPIO_NUM_38
+#define SD_MMC_D0  GPIO_NUM_39
+#define SD_MMC_D1  GPIO_NUM_41
+#define SD_MMC_D2  GPIO_NUM_48
+#define SD_MMC_D3  GPIO_NUM_47
 
- #define SD_MMC_CMD GPIO_NUM_40
- #define SD_MMC_CLK GPIO_NUM_38
- #define SD_MMC_D0  GPIO_NUM_39
- #define SD_MMC_D1  GPIO_NUM_41
- #define SD_MMC_D2  GPIO_NUM_48
- #define SD_MMC_D3  GPIO_NUM_47
-
-// A MCP Test: Control a lamp
+// ===================== LAMP (native disabled) =====================
 #define LAMP_GPIO GPIO_NUM_NC
 
 // ===================== DHT SENSOR =====================
 #define DHT11_PIN GPIO_NUM_NC
-
 
 #endif  // _BOARD_CONFIG_H_
