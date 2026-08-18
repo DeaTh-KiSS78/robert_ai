@@ -27,7 +27,7 @@
 #include "system_reset.h"
 #include "esp_lcd_ili9341.h"
 
-#include <pcf8574.h>   // 🔥 PCF8574
+#include "pcf8574.h"   // PCF8574 din esp-idf-lib
 
 #define TAG "MariaAi"
 
@@ -72,7 +72,6 @@ private:
 // ===================== MARIA AI =====================
 class MariaAi : public WifiBoard {
 private:
-    // 🔥 Eliminat toate Button-urile GPIO
     LcdDisplay *display_;
     i2c_master_bus_handle_t codec_i2c_bus_;
     TouchDriver touch_;
@@ -80,7 +79,7 @@ private:
 
     bool web_server_started_ = false;
 
-    // 🔥 PCF8574
+    // PCF8574
     pcf8574_t pcf_;
     uint8_t pcf_port_cache_ = 0xFF;
 
@@ -249,7 +248,7 @@ private:
             AUDIO_CODEC_I2C_SCL_PIN
         ));
 
-        ESP_ERROR_CHECK(pcf8574_init(&pcf_));
+        // toți pinii HIGH (input cu pull-up)
         ESP_ERROR_CHECK(pcf8574_port_write(&pcf_, 0xFF));
     }
 
@@ -369,8 +368,8 @@ public:
         InitializeSpi();
         InitializeLcdDisplay();
         InitializeTouch();
-        InitializePcf8574();       // 🔥 NOU
-        StartPcfButtonTask();      // 🔥 NOU
+        InitializePcf8574();
+        StartPcfButtonTask();
         InitializeTools();
 
         GetBacklight()->SetBrightness(100);
