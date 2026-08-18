@@ -27,7 +27,7 @@
 #include "system_reset.h"
 #include "esp_lcd_ili9341.h"
 
-#include "pcf8574.h"   // PCF8574 din esp-idf-lib
+#include "pcf8574.h"   // librăria ta REALĂ
 
 #define TAG "MariaAi"
 
@@ -79,8 +79,8 @@ private:
 
     bool web_server_started_ = false;
 
-    // PCF8574
-    pcf8574_t pcf_;
+    // PCF8574 — API-ul CORECT din librăria ta
+    i2c_dev_t pcf8574_;
     uint8_t pcf_port_cache_ = 0xFF;
 
 
@@ -236,20 +236,21 @@ private:
     }
 
 
-    // ===================== PCF8574 INIT =====================
+    // ===================== PCF8574 INIT — API CORECT =====================
     void InitializePcf8574() {
         ESP_LOGI(TAG, "Initializing PCF8574...");
 
+        memset(&pcf8574_, 0, sizeof(i2c_dev_t));
+
         ESP_ERROR_CHECK(pcf8574_init_desc(
-            &pcf_,
+            &pcf8574_,
             0x20,
             AUDIO_CODEC_I2C_NUM,
             AUDIO_CODEC_I2C_SDA_PIN,
             AUDIO_CODEC_I2C_SCL_PIN
         ));
 
-        // toți pinii HIGH (input cu pull-up)
-        ESP_ERROR_CHECK(pcf8574_port_write(&pcf_, 0xFF));
+        ESP_ERROR_CHECK(pcf8574_port_write(&pcf8574_, 0xFF));
     }
 
 
@@ -259,7 +260,7 @@ private:
         uint8_t port;
 
         while (true) {
-            if (pcf8574_port_read(&self->pcf_, &port) == ESP_OK) {
+            if (pcf8574_port_read(&self->pcf8574_, &port) == ESP_OK) {
 
                 bool up     = !(port & (1 << PCF_BTN_UP));
                 bool down   = !(port & (1 << PCF_BTN_DOWN));
