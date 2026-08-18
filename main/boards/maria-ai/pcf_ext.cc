@@ -5,16 +5,24 @@
 
 #define TAG "PCF_EXT"
 
-static i2c_master_bus_handle_t bus;
+static i2c_master_dev_handle_t pcf_dev;
 
 void InitializePcfExt(WifiBoard* board)
 {
-    // Folosește bus-ul I2C deja creat în MariaAi (codec_i2c_bus_)
-    bus = board->GetI2cBus();
+    // Folosește bus-ul I2C deja creat în MariaAi
+    i2c_master_bus_handle_t bus = board->GetCodecI2cBus();
+
+    // EXACT ca TouchDriver
+    i2c_master_dev_config_t cfg = {
+        .device_address = 0x27,
+        .scl_speed_hz = 100000,
+    };
+
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &cfg, &pcf_dev));
 
     // Setăm toți pinii HIGH (input cu pull-up)
     uint8_t out = 0xFF;
-    i2c_master_transmit(bus, &out, 1, 50);
+    i2c_master_transmit(pcf_dev, &out, 1, 50);
 }
 
 static void PcfExtTask(void* arg)
@@ -24,7 +32,7 @@ static void PcfExtTask(void* arg)
 
     while (true)
     {
-        if (i2c_master_transmit_receive(bus, NULL, 0, &port, 1, 50) == ESP_OK)
+        if (i2c_master_transmit_receive(pcf_dev, NULL, 0, &port, 1, 50) == ESP_OK)
         {
             bool up     = !(port & (1 << PCF_BTN_UP));
             bool down   = !(port & (1 << PCF_BTN_DOWN));
