@@ -2,23 +2,15 @@
 #include "application.h"
 #include "display/lcd_display.h"
 #include <esp_log.h>
+#include <driver/i2c_master.h>
 
 #define TAG "PCF_EXT"
 
 static i2c_master_dev_handle_t pcf_dev;
 
-void InitializePcfExt(WifiBoard* board)
+void SetPcfDevice(i2c_master_dev_handle_t dev)
 {
-    // Folosește bus-ul I2C deja creat în MariaAi
-    i2c_master_bus_handle_t bus = board->GetCodecI2cBus();
-
-    // EXACT ca TouchDriver
-    i2c_master_dev_config_t cfg = {
-        .device_address = 0x27,
-        .scl_speed_hz = 100000,
-    };
-
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &cfg, &pcf_dev));
+    pcf_dev = dev;
 }
 
 static void PcfExtTask(void* arg)
@@ -28,7 +20,6 @@ static void PcfExtTask(void* arg)
 
     while (true)
     {
-        // Citire simplă, fără scriere de pull-up
         if (i2c_master_transmit_receive(pcf_dev, NULL, 0, &port, 1, 50) == ESP_OK)
         {
             bool up     = !(port & (1 << PCF_BTN_UP));

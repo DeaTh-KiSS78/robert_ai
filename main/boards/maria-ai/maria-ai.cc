@@ -29,6 +29,7 @@
 #include "esp_lcd_ili9341.h"
 #include "pcf_ext.h"
 
+
 #define TAG "MariaAi"
 
 
@@ -66,6 +67,26 @@ public:
 private:
     i2c_master_dev_handle_t dev_;
 };
+
+
+
+
+// 🔥 AICI O PUI — funcție liberă, în maria-ai.cc
+void InitializePcfExt(i2c_master_bus_handle_t bus)
+{
+    i2c_device_config_t cfg = {
+        .device_address = 0x27,
+        .scl_speed_hz = 100000,
+        .scl_wait_us = 0,
+    };
+
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &cfg, &pcf_dev));
+}
+
+
+
+
+
 
 class MariaAi : public WifiBoard {
 private:
@@ -367,7 +388,7 @@ MariaAi():
         InitializeLcdDisplay();
         InitializeTouch();
         InitializeButtons();
-InitializePcfExt(this);
+InitializePcfExt(codec_i2c_bus_);
 StartPcfExtTask(this);
         InitializeTools();
         GetBacklight()->SetBrightness(100);

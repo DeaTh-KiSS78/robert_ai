@@ -4,5 +4,5 @@
 #include "config.h"
 #include "wifi_board.h"
 
-void InitializePcfExt(WifiBoard* board);
+void InitializePcfExt(i2c_master_bus_handle_t bus);
 void StartPcfExtTask(WifiBoard* board);
