@@ -27,6 +27,7 @@
 #include "led/single_led.h"
 #include "system_reset.h"
 #include "esp_lcd_ili9341.h"
+#include "pcf8574.h"
 
 #define TAG "MariaAi"
 
@@ -77,6 +78,8 @@ private:
     i2c_master_bus_handle_t codec_i2c_bus_;
     TouchDriver touch_;
     AdcBatteryMonitor* adc_battery_monitor_;
+	i2c_dev_t pcf8574_;
+	uint8_t pcf_port_cache_ = 0xFF;
 
 bool web_server_started_ = false;
 
@@ -204,6 +207,72 @@ static void WebServerTask(void* param) {
         }
     }
 
+static void PcfButtonTask(void *arg) {
+    auto *self = static_cast<MariaAi*>(arg);
+    uint8_t port;
+
+    while (true) {
+        if (pcf8574_port_read(&self->pcf8574_, &port) == ESP_OK) {
+
+            bool up     = !(port & (1 << PCF_BTN_UP));
+            bool down   = !(port & (1 << PCF_BTN_DOWN));
+            bool left   = !(port & (1 << PCF_BTN_LEFT));
+            bool right  = !(port & (1 << PCF_BTN_RIGHT));
+            bool middle = !(port & (1 << PCF_BTN_MIDDLE));
+            bool rst    = !(port & (1 << PCF_BTN_RST));
+
+            auto &app = Application::GetInstance();
+
+            if (up) {
+                auto codec = self->GetAudioCodec();
+                int v = codec->output_volume() + 10;
+                if (v > 100) v = 100;
+                codec->SetOutputVolume(v);
+                self->GetDisplay()->ShowNotification("Volum: " + std::to_string(v/10));
+            }
+
+            if (down) {
+                auto codec = self->GetAudioCodec();
+                int v = codec->output_volume() - 10;
+                if (v < 0) v = 0;
+                codec->SetOutputVolume(v);
+                self->GetDisplay()->ShowNotification("Volum: " + std::to_string(v/10));
+            }
+
+            if (left) {
+                auto bl = self->GetBacklight();
+                int b = bl->brightness() - 10;
+                if (b < 1) b = 1;
+                bl->SetBrightness(b);
+                self->GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
+            }
+
+            if (right) {
+                auto bl = self->GetBacklight();
+                int b = bl->brightness() + 10;
+                if (b > 100) b = 100;
+                bl->SetBrightness(b);
+                self->GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
+            }
+
+            if (middle) {
+                app.ToggleChatState();
+            }
+
+            if (rst) {
+                esp_restart();
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+void StartPcfButtonTask() {
+    xTaskCreatePinnedToCore(PcfButtonTask, "pcf_buttons", 4096, this, 5, nullptr, 0);
+}
+
+
     void InitializeTouch() {
         if (!touch_.Init(codec_i2c_bus_, 0x38)) return;
         xTaskCreatePinnedToCore(TouchTask, "touch_task", 4096, this, 5, nullptr, 0);
@@ -311,6 +380,32 @@ static void WebServerTask(void* param) {
 
  }
 
+void InitializePcf8574() {
+    ESP_LOGI(TAG, "Initializing PCF8574...");
+
+    memset(&pcf8574_, 0, sizeof(i2c_dev_t));
+
+    ESP_ERROR_CHECK(pcf8574_init_desc(
+        &pcf8574_,
+        0x27,                        // adresa PCF8574
+        AUDIO_CODEC_I2C_NUM,
+        AUDIO_CODEC_I2C_SDA_PIN,
+        AUDIO_CODEC_I2C_SCL_PIN
+    ));
+
+    // Toți pinii HIGH (input cu pull-up)
+    ESP_ERROR_CHECK(pcf8574_port_write(&pcf8574_, 0xFF));
+
+    // 🔥 TEST — verificăm dacă PCF răspunde
+    uint8_t val = 0;
+    esp_err_t err = pcf8574_port_read(&pcf8574_, &val);
+
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "PCF8574 OK, port=0x%02X", val);
+    } else {
+        ESP_LOGE(TAG, "PCF8574 NOT RESPONDING (err=%d)", err);
+    }
+}
 
     void InitializeLcdDisplay() {
         esp_lcd_panel_io_handle_t panel_io = nullptr;
@@ -366,6 +461,8 @@ MariaAi():
         InitializeLcdDisplay();
         InitializeTouch();
         InitializeButtons();
+InitializePcf8574();
+StartPcfButtonTask();
         InitializeTools();
         GetBacklight()->SetBrightness(100);
 
