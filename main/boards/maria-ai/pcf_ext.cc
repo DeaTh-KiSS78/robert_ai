@@ -1,34 +1,28 @@
 #include "pcf_ext.h"
 #include "application.h"
 #include "display/lcd_display.h"
-#include "config.h"
 #include <esp_log.h>
 
 #define TAG "PCF_EXT"
 
-// Instanța driverului PCF8574
 static i2c_dev_t pcf_dev;
 
-// Inițializare PCF8574
-void InitializePcfExt(MariaAi* board)
+void InitializePcfExt(WifiBoard* board)
 {
     ESP_LOGI(TAG, "Initializing PCF8574...");
 
     memset(&pcf_dev, 0, sizeof(i2c_dev_t));
 
-    // Inițializare descriptor I2C
     ESP_ERROR_CHECK(pcf8574_init_desc(
         &pcf_dev,
-        0x27,                        // Adresa PCF8574
+        0x27,
         AUDIO_CODEC_I2C_NUM,
         AUDIO_CODEC_I2C_SDA_PIN,
         AUDIO_CODEC_I2C_SCL_PIN
     ));
 
-    // Setăm toți pinii HIGH (input cu pull-up)
     ESP_ERROR_CHECK(pcf8574_port_write(&pcf_dev, 0xFF));
 
-    // Test de comunicare
     uint8_t val = 0;
     esp_err_t err = pcf8574_port_read(&pcf_dev, &val);
 
@@ -38,11 +32,9 @@ void InitializePcfExt(MariaAi* board)
         ESP_LOGE(TAG, "PCF8574 NOT RESPONDING (err=%d)", err);
 }
 
-
-// Task-ul care citește butoanele PCF8574
 static void PcfExtTask(void* arg)
 {
-    auto* board = static_cast<MariaAi*>(arg);
+    auto* board = static_cast<WifiBoard*>(arg);
     uint8_t port;
 
     while (true)
@@ -103,9 +95,7 @@ static void PcfExtTask(void* arg)
     }
 }
 
-
-// Pornirea task-ului
-void StartPcfExtTask(MariaAi* board)
+void StartPcfExtTask(WifiBoard* board)
 {
     xTaskCreatePinnedToCore(PcfExtTask, "pcf_ext_task", 4096, board, 5, nullptr, 0);
 }
