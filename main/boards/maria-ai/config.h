@@ -29,6 +29,14 @@
 #define BACKLIGHT_DOWN_BUTTON_GPIO GPIO_NUM_NC
 #define RESET_BUTTON_GPIO         GPIO_NUM_NC
 
+//pini pcf
+#define PCF_BTN_UP       0
+#define PCF_BTN_DOWN     1
+#define PCF_BTN_LEFT     2
+#define PCF_BTN_RIGHT    3
+#define PCF_BTN_MIDDLE   4
+#define PCF_BTN_RST      5
+
 //Secțiunea de afișare a ecranului
 #define DISPLAY_BACKLIGHT_PIN GPIO_NUM_45
 
