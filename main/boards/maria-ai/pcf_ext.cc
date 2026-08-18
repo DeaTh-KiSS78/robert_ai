@@ -19,10 +19,6 @@ void InitializePcfExt(WifiBoard* board)
     };
 
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &cfg, &pcf_dev));
-
-    // Setăm toți pinii HIGH (input cu pull-up)
-    uint8_t out = 0xFF;
-    i2c_master_transmit(pcf_dev, &out, 1, 50);
 }
 
 static void PcfExtTask(void* arg)
@@ -32,6 +28,7 @@ static void PcfExtTask(void* arg)
 
     while (true)
     {
+        // Citire simplă, fără scriere de pull-up
         if (i2c_master_transmit_receive(pcf_dev, NULL, 0, &port, 1, 50) == ESP_OK)
         {
             bool up     = !(port & (1 << PCF_BTN_UP));
