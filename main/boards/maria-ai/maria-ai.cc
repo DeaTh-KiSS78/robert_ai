@@ -121,15 +121,8 @@ static void PcfTestTask(void *arg)
     while (true) {
         uint8_t val = 0;
 
-        // READ-ONLY — fără niciun byte scris înainte
-        esp_err_t err = i2c_master_transmit_receive(
-            pcf_dev,
-            nullptr,   // zero bytes scrise
-            0,
-            &val,      // buffer de citire
-            1,         // citim 1 byte
-            50
-        );
+        // READ-ONLY — metoda corectă în IDF 6.0.2
+        esp_err_t err = i2c_master_receive(pcf_dev, &val, 1, 50);
 
         if (err == ESP_OK) {
             ESP_LOGI("PCF", "Value = 0x%02X", val);
