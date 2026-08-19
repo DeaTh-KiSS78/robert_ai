@@ -386,9 +386,11 @@ MariaAi():
     ESP_ERROR_CHECK(i2c_master_bus_add_device(codec_i2c_bus_, &pcf_cfg, &pcf_dev));
     ESP_LOGI("PCF", "PCF8574 initialized OK");
 
-// 🔥 AICI — TEST DE CITIRE
+// 🔥 AICI — TEST DE CITIRE (varianta corectă)
 uint8_t val = 0xFF;
-if (i2c_master_transmit_receive(pcf_dev, NULL, 0, &val, 1, 50) == ESP_OK) {
+uint8_t dummy = 0x00;
+
+if (i2c_master_transmit_receive(pcf_dev, &dummy, 1, &val, 1, 50) == ESP_OK) {
     ESP_LOGI("PCF", "Read OK, value = 0x%02X", val);
 } else {
     ESP_LOGE("PCF", "Read FAILED");
