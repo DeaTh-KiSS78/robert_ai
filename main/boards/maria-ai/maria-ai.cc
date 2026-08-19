@@ -66,6 +66,9 @@ private:
     i2c_master_dev_handle_t dev_;
 };
 
+static i2c_master_dev_handle_t pcf_dev = nullptr;
+
+
 class MariaAi : public WifiBoard {
 private:
     Button boot_button_;
@@ -225,6 +228,7 @@ static void WebServerTask(void* param) {
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &codec_i2c_bus_));
     }
 
+
     void InitializeSpi() {
         spi_bus_config_t buscfg = {};
         buscfg.mosi_io_num = DISPLAY_MOSI_PIN;
@@ -361,6 +365,15 @@ MariaAi():
     backlight_down_button_(BACKLIGHT_DOWN_BUTTON_GPIO)
 	{
         InitializeI2c();
+    // 🔥 AICI — FIX AICI VINE PCF
+    i2c_device_config_t pcf_cfg = {
+        .device_address = 0x27,
+        .scl_speed_hz = 100000,
+        .scl_wait_us = 0,
+    };
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(codec_i2c_bus_, &pcf_cfg, &pcf_dev));
+    ESP_LOGI("PCF", "PCF8574 initialized OK");
+
         InitializeBatteryMonitor();
         InitializeSpi();
         InitializeLcdDisplay();
