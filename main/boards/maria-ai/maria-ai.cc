@@ -119,13 +119,22 @@ static void WebServerTask(void* param) {
 static void PcfTestTask(void *arg)
 {
     while (true) {
-        uint8_t val = 0xFF;
-        uint8_t dummy = 0x00;
+        uint8_t val = 0;
 
-        if (i2c_master_transmit_receive(pcf_dev, &dummy, 1, &val, 1, 50) == ESP_OK) {
+        // READ-ONLY — fără niciun byte scris înainte
+        esp_err_t err = i2c_master_transmit_receive(
+            pcf_dev,
+            nullptr,   // zero bytes scrise
+            0,
+            &val,      // buffer de citire
+            1,         // citim 1 byte
+            50
+        );
+
+        if (err == ESP_OK) {
             ESP_LOGI("PCF", "Value = 0x%02X", val);
         } else {
-            ESP_LOGE("PCF", "Read FAILED");
+            ESP_LOGE("PCF", "Read FAILED: %s", esp_err_to_name(err));
         }
 
         vTaskDelay(pdMS_TO_TICKS(500));
