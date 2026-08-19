@@ -120,12 +120,15 @@ static void PcfTestTask(void *arg)
 {
     while (true) {
         uint8_t val = 0xFF;
-        if (i2c_master_transmit_receive(pcf_dev, NULL, 0, &val, 1, 50) == ESP_OK) {
+        uint8_t dummy = 0x00;
+
+        if (i2c_master_transmit_receive(pcf_dev, &dummy, 1, &val, 1, 50) == ESP_OK) {
             ESP_LOGI("PCF", "Value = 0x%02X", val);
         } else {
             ESP_LOGE("PCF", "Read FAILED");
         }
-        vTaskDelay(pdMS_TO_TICKS(200));
+
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 	
