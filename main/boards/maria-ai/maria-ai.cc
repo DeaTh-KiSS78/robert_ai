@@ -382,7 +382,7 @@ MariaAi():
         InitializeI2c();
     // 🔥 AICI — FIX AICI VINE PCF
     i2c_device_config_t pcf_cfg = {
-        .device_address = 0x20,
+        .device_address = 0x27,
         .scl_speed_hz = 100000,
         .scl_wait_us = 0,
     };
