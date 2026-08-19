@@ -399,6 +399,17 @@ if (i2c_master_transmit_receive(pcf_dev, &dummy, 1, &val, 1, 50) == ESP_OK) {
     ESP_LOGE("PCF", "Read FAILED");
 }
 
+// 🔥 TEST DE WRITE — verificăm dacă PCF răspunde la scriere
+uint8_t out = 0xFF;  // toate pinii HIGH (intrări cu pull-up)
+esp_err_t err = i2c_master_transmit(pcf_dev, &out, 1, 50);
+
+if (err == ESP_OK) {
+    ESP_LOGI("PCF", "WRITE OK");
+} else {
+    ESP_LOGE("PCF", "WRITE FAILED: %s", esp_err_to_name(err));
+}
+
+
 xTaskCreatePinnedToCore(PcfTestTask, "pcf_test", 2048, NULL, 5, NULL, 0);
 
         InitializeBatteryMonitor();
