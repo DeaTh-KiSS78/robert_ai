@@ -296,11 +296,19 @@ static void PcfButtonTask(void *arg) {
     void InitializeButtons() {
 cb_boot_ = [this]() {
     auto& app = Application::GetInstance();
+
+    // Dacă device-ul încă pornește → intră în config mode
     if (app.GetDeviceState() == kDeviceStateStarting) {
         EnterWifiConfigMode();
         return;
     }
-    app.ToggleChatState();
+
+    // Toggle identic cu touch
+    if (app.IsListening()) {
+        app.StopListening();
+    } else {
+        app.StartListening();
+    }
 };
 
 boot_button_.OnClick(cb_boot_);
