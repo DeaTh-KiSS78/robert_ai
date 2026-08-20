@@ -372,16 +372,8 @@ static void PcfTestTask(void *arg)
         static LampController lamp(LAMP_GPIO);
     }
 
-public:
-MariaAi():
-    boot_button_(BOOT_BUTTON_GPIO),
-    volume_up_button_(VOLUME_UP_BUTTON_GPIO),
-    volume_down_button_(VOLUME_DOWN_BUTTON_GPIO),
-    backlight_up_button_(BACKLIGHT_UP_BUTTON_GPIO),
-    backlight_down_button_(BACKLIGHT_DOWN_BUTTON_GPIO)
-	{
-        InitializeI2c();
 
+    void InitializePcf() {
 
     // 🔥 AICI — FIX AICI VINE PCF
     i2c_device_config_t pcf_cfg = {
@@ -411,10 +403,18 @@ if (err == ESP_OK) {
 } else {
     ESP_LOGE("PCF", "WRITE FAILED: %s", esp_err_to_name(err));
 }
+    }
 
-
-//xTaskCreatePinnedToCore(PcfTestTask, "pcf_test", 2048, NULL, 5, NULL, 0);
-
+public:
+MariaAi():
+    boot_button_(BOOT_BUTTON_GPIO),
+    volume_up_button_(VOLUME_UP_BUTTON_GPIO),
+    volume_down_button_(VOLUME_DOWN_BUTTON_GPIO),
+    backlight_up_button_(BACKLIGHT_UP_BUTTON_GPIO),
+    backlight_down_button_(BACKLIGHT_DOWN_BUTTON_GPIO)
+	{
+        InitializeI2c();
+        InitializePcf();
         InitializeBatteryMonitor();
         InitializeSpi();
         InitializeLcdDisplay();
@@ -423,6 +423,7 @@ if (err == ESP_OK) {
         InitializeTools();
         GetBacklight()->SetBrightness(100);
 
+//xTaskCreatePinnedToCore(PcfTestTask, "pcf_test", 2048, NULL, 5, NULL, 0);
 
 		// Montezi SD cardul
 		vTaskDelay(pdMS_TO_TICKS(3000));  // 1 s pentru stabilizare alimentare SDMMC
