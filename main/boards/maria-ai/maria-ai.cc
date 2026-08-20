@@ -115,25 +115,84 @@ static void WebServerTask(void* param) {
     vTaskDelete(nullptr);
 }
 
-/*
-static void PcfTestTask(void *arg)
-{
+static void PcfButtonTask(void *arg) {
+    auto *self = static_cast<MariaAi*>(arg);
+
+    uint8_t last_state = 0xFF;
+
     while (true) {
-        uint8_t val = 0;
+        uint8_t state = 0xFF;
 
-        // READ-ONLY — metoda corectă în IDF 6.0.2
-        esp_err_t err = i2c_master_receive(pcf_dev, &val, 1, 50);
+        if (i2c_master_receive(pcf_dev, &state, 1, 50) == ESP_OK) {
 
-        if (err == ESP_OK) {
-            ESP_LOGI("PCF", "Value = 0x%02X", val);
-        } else {
-            ESP_LOGE("PCF", "Read FAILED: %s", esp_err_to_name(err));
+            uint8_t changed = last_state ^ state;     // ce s-a schimbat
+            uint8_t pressed = changed & (~state);     // detectăm impuls LOW
+
+            // 🔥 VOLUME UP
+            if (pressed & (1 << PCF_BTN_UP)) {
+                auto codec = self->GetAudioCodec();
+                int v = codec->output_volume() + 10;
+                if (v > 100) v = 100;
+                codec->SetOutputVolume(v);
+
+                char msg[32];
+                snprintf(msg, sizeof(msg), "Volum: %d%%", v);
+                self->GetDisplay()->ShowNotification(msg);
+            }
+
+            // 🔥 VOLUME DOWN
+            if (pressed & (1 << PCF_BTN_DOWN)) {
+                auto codec = self->GetAudioCodec();
+                int v = codec->output_volume() - 10;
+                if (v < 0) v = 0;
+                codec->SetOutputVolume(v);
+
+                char msg[32];
+                snprintf(msg, sizeof(msg), "Volum: %d%%", v);
+                self->GetDisplay()->ShowNotification(msg);
+            }
+
+            // 🔥 BACKLIGHT UP
+            if (pressed & (1 << PCF_BTN_LEFT)) {
+                auto backlight = self->GetBacklight();
+                int b = backlight->brightness() + 10;
+                if (b > 100) b = 100;
+                backlight->SetBrightness(b);
+
+                char msg[32];
+                snprintf(msg, sizeof(msg), "Luminozitate: %d%%", b);
+                self->GetDisplay()->ShowNotification(msg);
+            }
+
+            // 🔥 BACKLIGHT DOWN
+            if (pressed & (1 << PCF_BTN_RIGHT)) {
+                auto backlight = self->GetBacklight();
+                int b = backlight->brightness() - 10;
+                if (b < 1) b = 1;
+                backlight->SetBrightness(b);
+
+                char msg[32];
+                snprintf(msg, sizeof(msg), "Luminozitate: %d%%", b);
+                self->GetDisplay()->ShowNotification(msg);
+            }
+
+            // 🔥 MIDDLE = BOOT BUTTON LOGIC
+            if (pressed & (1 << PCF_BTN_MIDDLE)) {
+                self->boot_button_.TriggerClick();
+            }
+
+            // 🔥 RESET BUTTON (software reset)
+            if (pressed & (1 << PCF_BTN_RST)) {
+                self->GetDisplay()->ShowNotification("Restart...");
+                esp_restart();
+            }
+
+            last_state = state;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
-*/
 	
     void InitializeBatteryMonitor() {
         adc_battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_1, ADC_CHANNEL_8, 200000, 200000, GPIO_NUM_NC);
@@ -379,10 +438,6 @@ static void PcfTestTask(void *arg)
 		};
 		ESP_ERROR_CHECK(i2c_master_bus_add_device(codec_i2c_bus_, &pcf_cfg, &pcf_dev));
 		ESP_LOGI("PCF", "PCF8574 initialized OK");
-
-		// 🔥 AICI SETĂM PINUL 0 PE LOW
-		uint8_t out = 0xFE;   // P0 LOW, restul HIGH
-		i2c_master_transmit(pcf_dev, &out, 1, 50);
 	}
 
 public:
@@ -403,7 +458,7 @@ MariaAi():
         InitializeTools();
         GetBacklight()->SetBrightness(100);
 
-//xTaskCreatePinnedToCore(PcfTestTask, "pcf_test", 2048, NULL, 5, NULL, 0);
+xTaskCreatePinnedToCore(PcfButtonTask, "pcf_buttons", 4096, this, 5, nullptr, 0);
 
 		// Montezi SD cardul
 		vTaskDelay(pdMS_TO_TICKS(3000));  // 1 s pentru stabilizare alimentare SDMMC

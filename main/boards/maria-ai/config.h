@@ -20,9 +20,11 @@
 #define AUDIO_CODEC_I2C_SDA_PIN  GPIO_NUM_16
 #define AUDIO_CODEC_ES8311_ADDR  ES8311_CODEC_DEFAULT_ADDR
 
+//ledul placii
+#define BUILTIN_LED_GPIO GPIO_NUM_42
+
 //Pini Butoane
 #define BOOT_BUTTON_GPIO GPIO_NUM_0
-#define BUILTIN_LED_GPIO GPIO_NUM_42
 #define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_NC
 #define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_NC
 #define BACKLIGHT_UP_BUTTON_GPIO  GPIO_NUM_NC
@@ -30,12 +32,12 @@
 #define RESET_BUTTON_GPIO         GPIO_NUM_NC
 
 // A MCP Test: Control a lamp
-#define LAMP_GPIO GPIO_NUM_NC
+#define LAMP_GPIO GPIO_NUM_3
 
 
 
 //pini pcf si atribuiri
-#define PCF_BTN_LAMP      0
+#define PCF_BTN_LAMP     0
 #define PCF_BTN_UP       1
 #define PCF_BTN_DOWN     2
 #define PCF_BTN_LEFT     3
