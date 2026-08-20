@@ -145,12 +145,12 @@ static void PcfButtonTask(void *arg) {
             }
 
             // 🔥 BACKLIGHT UP
-            if (pressed & (1 << PCF_BTN_LEFT)) {
+            if (pressed & (1 << PCF_BTN_RIGHT)) {
                 self->cb_backlight_up_();
             }
 
             // 🔥 BACKLIGHT DOWN
-            if (pressed & (1 << PCF_BTN_RIGHT)) {
+            if (pressed & (1 << PCF_BTN_LEFT)) {
                 self->cb_backlight_down_();
             }
 
