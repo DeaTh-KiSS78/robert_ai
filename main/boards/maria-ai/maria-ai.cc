@@ -66,7 +66,7 @@ private:
     i2c_master_dev_handle_t dev_;
 };
 
-static i2c_master_dev_handle_t pcf_dev = nullptr;
+//static i2c_master_dev_handle_t pcf_dev = nullptr;
 
 
 class MariaAi : public WifiBoard {
@@ -116,6 +116,7 @@ static void WebServerTask(void* param) {
     vTaskDelete(nullptr);
 }
 
+/*
 static void PcfTestTask(void *arg)
 {
     while (true) {
@@ -133,7 +134,7 @@ static void PcfTestTask(void *arg)
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
-	
+*/	
 	
     void InitializeBatteryMonitor() {
         adc_battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_1, ADC_CHANNEL_8, 200000, 200000, GPIO_NUM_NC);
@@ -244,7 +245,6 @@ static void PcfTestTask(void *arg)
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &codec_i2c_bus_));
     }
-
 
     void InitializeSpi() {
         spi_bus_config_t buscfg = {};
@@ -382,6 +382,8 @@ MariaAi():
     backlight_down_button_(BACKLIGHT_DOWN_BUTTON_GPIO)
 	{
         InitializeI2c();
+
+/*
     // 🔥 AICI — FIX AICI VINE PCF
     i2c_device_config_t pcf_cfg = {
         .device_address = 0x27,
@@ -413,7 +415,7 @@ if (err == ESP_OK) {
 
 
 xTaskCreatePinnedToCore(PcfTestTask, "pcf_test", 2048, NULL, 5, NULL, 0);
-
+*/
         InitializeBatteryMonitor();
         InitializeSpi();
         InitializeLcdDisplay();
