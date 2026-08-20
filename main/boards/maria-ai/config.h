@@ -35,7 +35,7 @@
 
 
 //pini pcf si atribuiri
-#define PCF_BTN_RST      0
+#define PCF_BTN_LAMP      0
 #define PCF_BTN_UP       1
 #define PCF_BTN_DOWN     2
 #define PCF_BTN_LEFT     3
