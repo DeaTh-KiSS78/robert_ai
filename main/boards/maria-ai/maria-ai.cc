@@ -22,7 +22,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_timer.h>
-#include <wifi_manager.h>
+#include <wifi_manager.h>      // 🔥 LIPSEA — FIX CRITIC
 
 #include "led/single_led.h"
 #include "system_reset.h"
@@ -80,7 +80,7 @@ private:
     TouchDriver touch_;
     AdcBatteryMonitor* adc_battery_monitor_;
 
-	bool web_server_started_ = false;
+bool web_server_started_ = false;
 
 static void WebServerTask(void* param) {
     auto* board = static_cast<MariaAi*>(param);
