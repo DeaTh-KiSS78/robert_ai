@@ -22,7 +22,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_timer.h>
-#include <wifi_manager.h>      // 🔥 LIPSEA — FIX CRITIC
+#include <wifi_manager.h>
 
 #include "led/single_led.h"
 #include "system_reset.h"
@@ -80,7 +80,7 @@ private:
     TouchDriver touch_;
     AdcBatteryMonitor* adc_battery_monitor_;
 
-bool web_server_started_ = false;
+	bool web_server_started_ = false;
 
 static void WebServerTask(void* param) {
     auto* board = static_cast<MariaAi*>(param);
@@ -331,7 +331,6 @@ static void PcfTestTask(void *arg)
 
  }
 
-
     void InitializeLcdDisplay() {
         esp_lcd_panel_io_handle_t panel_io = nullptr;
         esp_lcd_panel_handle_t panel = nullptr;
@@ -371,39 +370,20 @@ static void PcfTestTask(void *arg)
     void InitializeTools() {
         static LampController lamp(LAMP_GPIO);
     }
+	
+	void InitializePcf() {
+		i2c_device_config_t pcf_cfg = {
+			.device_address = 0x27,
+			.scl_speed_hz = 100000,
+			.scl_wait_us = 0,
+		};
+		ESP_ERROR_CHECK(i2c_master_bus_add_device(codec_i2c_bus_, &pcf_cfg, &pcf_dev));
+		ESP_LOGI("PCF", "PCF8574 initialized OK");
 
-
-    void InitializePcf() {
-
-    // 🔥 AICI — FIX AICI VINE PCF
-    i2c_device_config_t pcf_cfg = {
-        .device_address = 0x27,
-        .scl_speed_hz = 100000,
-        .scl_wait_us = 0,
-    };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(codec_i2c_bus_, &pcf_cfg, &pcf_dev));
-    ESP_LOGI("PCF", "PCF8574 initialized OK");
-
-// 🔥 AICI — TEST DE CITIRE (varianta corectă)
-uint8_t val = 0xFF;
-uint8_t dummy = 0x00;
-
-if (i2c_master_transmit_receive(pcf_dev, &dummy, 1, &val, 1, 50) == ESP_OK) {
-    ESP_LOGI("PCF", "Read OK, value = 0x%02X", val);
-} else {
-    ESP_LOGE("PCF", "Read FAILED");
-}
-
-// 🔥 TEST DE WRITE — verificăm dacă PCF răspunde la scriere
-uint8_t out = 0xFF;  // toate pinii HIGH (intrări cu pull-up)
-esp_err_t err = i2c_master_transmit(pcf_dev, &out, 1, 50);
-
-if (err == ESP_OK) {
-    ESP_LOGI("PCF", "WRITE OK");
-} else {
-    ESP_LOGE("PCF", "WRITE FAILED: %s", esp_err_to_name(err));
-}
-    }
+		// 🔥 AICI SETĂM PINUL 0 PE LOW
+		uint8_t out = 0xFE;   // P0 LOW, restul HIGH
+		i2c_master_transmit(pcf_dev, &out, 1, 50);
+	}
 
 public:
 MariaAi():
