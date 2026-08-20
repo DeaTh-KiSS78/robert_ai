@@ -75,6 +75,12 @@ private:
     Button volume_down_button_;
     Button backlight_up_button_;
     Button backlight_down_button_;
+    // Callbacks pentru PCF
+    std::function<void()> cb_volume_up_;
+    std::function<void()> cb_volume_down_;
+    std::function<void()> cb_backlight_up_;
+    std::function<void()> cb_backlight_down_;
+    std::function<void()> cb_boot_;
     LcdDisplay *display_;
     i2c_master_bus_handle_t codec_i2c_bus_;
     TouchDriver touch_;
@@ -130,55 +136,27 @@ static void PcfButtonTask(void *arg) {
 
             // 🔥 VOLUME UP
             if (pressed & (1 << PCF_BTN_UP)) {
-                auto codec = self->GetAudioCodec();
-                int v = codec->output_volume() + 10;
-                if (v > 100) v = 100;
-                codec->SetOutputVolume(v);
-
-                char msg[32];
-                snprintf(msg, sizeof(msg), "Volum: %d%%", v);
-                self->GetDisplay()->ShowNotification(msg);
+                self->cb_volume_up_();
             }
 
             // 🔥 VOLUME DOWN
             if (pressed & (1 << PCF_BTN_DOWN)) {
-                auto codec = self->GetAudioCodec();
-                int v = codec->output_volume() - 10;
-                if (v < 0) v = 0;
-                codec->SetOutputVolume(v);
-
-                char msg[32];
-                snprintf(msg, sizeof(msg), "Volum: %d%%", v);
-                self->GetDisplay()->ShowNotification(msg);
+                self->cb_volume_down_();
             }
 
             // 🔥 BACKLIGHT UP
             if (pressed & (1 << PCF_BTN_LEFT)) {
-                auto backlight = self->GetBacklight();
-                int b = backlight->brightness() + 10;
-                if (b > 100) b = 100;
-                backlight->SetBrightness(b);
-
-                char msg[32];
-                snprintf(msg, sizeof(msg), "Luminozitate: %d%%", b);
-                self->GetDisplay()->ShowNotification(msg);
+                self->cb_backlight_up_();
             }
 
             // 🔥 BACKLIGHT DOWN
             if (pressed & (1 << PCF_BTN_RIGHT)) {
-                auto backlight = self->GetBacklight();
-                int b = backlight->brightness() - 10;
-                if (b < 1) b = 1;
-                backlight->SetBrightness(b);
-
-                char msg[32];
-                snprintf(msg, sizeof(msg), "Luminozitate: %d%%", b);
-                self->GetDisplay()->ShowNotification(msg);
+                self->cb_backlight_down_();
             }
 
             // 🔥 MIDDLE = BOOT BUTTON LOGIC
             if (pressed & (1 << PCF_BTN_MIDDLE)) {
-                self->boot_button_.TriggerClick();
+                self->cb_boot_();
             }
 
             // 🔥 RESET BUTTON (software reset)
@@ -316,55 +294,57 @@ static void PcfButtonTask(void *arg) {
     }
 
     void InitializeButtons() {
-        boot_button_.OnClick([this]() {
-            auto& app = Application::GetInstance();
-             // During startup (before connected), pressing BOOT button enters Wi-Fi config mode without reboot
-           if (app.GetDeviceState() == kDeviceStateStarting) {
-                EnterWifiConfigMode();
-                return;
-            }
-            app.ToggleChatState();
-        });
+cb_boot_ = [this]() {
+    auto& app = Application::GetInstance();
+    if (app.GetDeviceState() == kDeviceStateStarting) {
+        EnterWifiConfigMode();
+        return;
+    }
+    app.ToggleChatState();
+};
+
+boot_button_.OnClick(cb_boot_);
  
-        volume_up_button_.OnClick([this]() {
-            auto codec = GetAudioCodec();
-            auto volume = codec->output_volume() + 10;
-            if (volume > 100) {
-                volume = 100;
-            }
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
-            codec->SetOutputVolume(volume);
-            
-        });
+cb_volume_up_ = [this]() {
+    auto codec = GetAudioCodec();
+    auto volume = codec->output_volume() + 10;
+    if (volume > 100) volume = 100;
+    GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
+    codec->SetOutputVolume(volume);
+};
+
+volume_up_button_.OnClick(cb_volume_up_);
 
         volume_up_button_.OnLongPress([this]() {
             GetAudioCodec()->SetOutputVolume(100);
             GetDisplay()->ShowNotification(Lang::Strings::MAX_VOLUME);
         });
 
-        volume_down_button_.OnClick([this]() {
-            auto codec = GetAudioCodec();
-            auto volume = codec->output_volume() - 10;
-            if (volume < 0) {
-                volume = 0;
-            }
-            codec->SetOutputVolume(volume);
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
-        });
+cb_volume_down_ = [this]() {
+    auto codec = GetAudioCodec();
+    auto volume = codec->output_volume() - 10;
+    if (volume < 0) volume = 0;
+    codec->SetOutputVolume(volume);
+    GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
+};
+
+volume_down_button_.OnClick(cb_volume_down_);
 
         volume_down_button_.OnLongPress([this]() {
             GetAudioCodec()->SetOutputVolume(0);
             GetDisplay()->ShowNotification(Lang::Strings::MUTED);
         });
-    // 🔥 BACKLIGHT UP BUTTON
-    backlight_up_button_.OnClick([this]() {
-        auto backlight = GetBacklight();
-        int b = backlight->brightness() + 10;
-        if (b > 100) b = 100;
-        backlight->SetBrightness(b);
 
-        GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
-    });
+    // 🔥 BACKLIGHT UP BUTTON
+cb_backlight_up_ = [this]() {
+    auto backlight = GetBacklight();
+    int b = backlight->brightness() + 10;
+    if (b > 100) b = 100;
+    backlight->SetBrightness(b);
+    GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
+};
+
+backlight_up_button_.OnClick(cb_backlight_up_);
 
     backlight_up_button_.OnLongPress([this]() {
         auto backlight = GetBacklight();
@@ -373,14 +353,15 @@ static void PcfButtonTask(void *arg) {
     });
 
     // 🔥 BACKLIGHT DOWN BUTTON
-    backlight_down_button_.OnClick([this]() {
-        auto backlight = GetBacklight();
-        int b = backlight->brightness() - 10;
-        if (b < 1) b = 1;
-        backlight->SetBrightness(b);
+cb_backlight_down_ = [this]() {
+    auto backlight = GetBacklight();
+    int b = backlight->brightness() - 10;
+    if (b < 1) b = 1;
+    backlight->SetBrightness(b);
+    GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
+};
 
-        GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
-    });
+backlight_down_button_.OnClick(cb_backlight_down_);
 
     backlight_down_button_.OnLongPress([this]() {
         auto backlight = GetBacklight();
