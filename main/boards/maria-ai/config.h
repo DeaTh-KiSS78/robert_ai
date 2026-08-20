@@ -21,23 +21,43 @@
 #define AUDIO_CODEC_ES8311_ADDR  ES8311_CODEC_DEFAULT_ADDR
 
 //Pini Butoane
-#define BOOT_BUTTON_GPIO GPIO_NUM_0
 #define BUILTIN_LED_GPIO GPIO_NUM_42
-#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_2
-#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_3
-#define BACKLIGHT_UP_BUTTON_GPIO  GPIO_NUM_NC
-#define BACKLIGHT_DOWN_BUTTON_GPIO GPIO_NUM_NC
-#define RESET_BUTTON_GPIO         GPIO_NUM_NC
+//#define BOOT_BUTTON_GPIO GPIO_NUM_0
+//#define VOLUME_UP_BUTTON_GPIO   GPIO_NUM_NC
+//#define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_NC
+//#define BACKLIGHT_UP_BUTTON_GPIO  GPIO_NUM_NC
+//#define BACKLIGHT_DOWN_BUTTON_GPIO GPIO_NUM_NC
+//#define RESET_BUTTON_GPIO         GPIO_NUM_NC
 
-/*
-//pini pcf
-#define PCF_BTN_UP       0
-#define PCF_BTN_DOWN     1
-#define PCF_BTN_LEFT     2
-#define PCF_BTN_RIGHT    3
-#define PCF_BTN_MIDDLE   4
-#define PCF_BTN_RST      5
-*/
+
+// A MCP Test: Control a lamp
+//#define LAMP_GPIO GPIO_NUM_14
+
+
+
+//pini pcf + atribuiri
+
+#define PCF_BTN_LAMP       0
+#define LAMP_GPIO PCF_BTN_LAMP                   // P0
+
+#define PCF_BTN_UP       1
+#define VOLUME_UP_BUTTON_GPIO   PCF_BTN_UP       // P1
+
+#define PCF_BTN_DOWN     2
+#define VOLUME_DOWN_BUTTON_GPIO PCF_BTN_DOWN     // P2
+
+#define PCF_BTN_LEFT     3
+#define BACKLIGHT_UP_BUTTON_GPIO  PCF_BTN_LEFT   // P3
+
+#define PCF_BTN_RIGHT    4
+#define BACKLIGHT_DOWN_BUTTON_GPIO PCF_BTN_RIGHT // P4
+
+#define PCF_BTN_MIDDLE   5
+#define BOOT_BUTTON_GPIO        PCF_BTN_MIDDLE   // P5
+
+#define PCF_BTN_RST      6
+#define RESET_BUTTON_GPIO         PCF_BTN_RST    // P6
+
 
 //Secțiunea de afișare a ecranului
 #define DISPLAY_BACKLIGHT_PIN GPIO_NUM_45

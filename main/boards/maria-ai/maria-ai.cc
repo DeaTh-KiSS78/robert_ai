@@ -22,7 +22,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_timer.h>
-#include <wifi_manager.h>      // 🔥 LIPSEA — FIX CRITIC
+#include <wifi_manager.h>
 
 #include "led/single_led.h"
 #include "system_reset.h"
@@ -67,7 +67,7 @@ private:
 };
 
 static i2c_master_dev_handle_t pcf_dev = nullptr;
-
+static uint8_t pcf_state = 0xFE;   // P0 LOW (lampă), restul HIGH
 class MariaAi : public WifiBoard {
 private:
     Button boot_button_;
@@ -79,149 +79,141 @@ private:
     i2c_master_bus_handle_t codec_i2c_bus_;
     TouchDriver touch_;
     AdcBatteryMonitor* adc_battery_monitor_;
+    bool web_server_started_ = false;
 
-bool web_server_started_ = false;
+    // ---------------- PCF WRITE ----------------
+    void PcfWriteState() {
+        i2c_master_transmit(pcf_dev, &pcf_state, 1, 50);
+    }
 
-static void WebServerTask(void* param) {
-    auto* board = static_cast<MariaAi*>(param);
-    auto& wifi = WifiManager::GetInstance();
+    void PcfSetPin(int pin, bool level) {
+        if (level)
+            pcf_state |=  (1 << pin);
+        else
+            pcf_state &= ~(1 << pin);
 
-    ESP_LOGI(TAG, "WebServerTask started, waiting for WiFi...");
+        PcfWriteState();
+    }
 
-    while (true) {
-        bool config = wifi.IsConfigMode();
-        bool connected = wifi.IsConnected();
+    uint8_t PcfRead() {
+        uint8_t val = 0xFF;
+        i2c_master_receive(pcf_dev, &val, 1, 50);
+        return val;
+    }
 
-        ESP_LOGI(TAG, "WebServerTask: config=%d, connected=%d",
-                 (int)config, (int)connected);
-
-        // Pornim serverul doar cÃ¢nd:
-        // - NU suntem Ã®n config mode (hotspot)
-        // - suntem conectaÈ›i la router
-        if (!config && connected) {
-            ESP_LOGI(TAG, "Conditions met. Starting WebServer");
-
-            if (board->GetDisplay()) {
-                board->GetDisplay()->ShowNotification("Webserver started");
-            }
-
-            start_webserver();
-            break;
+    // ---------------- PCF BUTTON HANDLERS ----------------
+    void HandlePcfClick(int pin) {
+        switch(pin) {
+            case PCF_BTN_UP: volume_up_button_.TriggerClick(); break;
+            case PCF_BTN_DOWN: volume_down_button_.TriggerClick(); break;
+            case PCF_BTN_LEFT: backlight_up_button_.TriggerClick(); break;
+            case PCF_BTN_RIGHT: backlight_down_button_.TriggerClick(); break;
+            case PCF_BTN_MIDDLE: boot_button_.TriggerClick(); break;
+            case PCF_BTN_RST: SystemReset::Restart(); break;
         }
-
-        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    vTaskDelete(nullptr);
-}
-
-/*
-static void PcfTestTask(void *arg)
-{
-    while (true) {
-        uint8_t val = 0;
-
-        // READ-ONLY — metoda corectă în IDF 6.0.2
-        esp_err_t err = i2c_master_receive(pcf_dev, &val, 1, 50);
-
-        if (err == ESP_OK) {
-            ESP_LOGI("PCF", "Value = 0x%02X", val);
-        } else {
-            ESP_LOGE("PCF", "Read FAILED: %s", esp_err_to_name(err));
+    void HandlePcfLongPress(int pin) {
+        switch(pin) {
+            case PCF_BTN_UP: volume_up_button_.TriggerLongPress(); break;
+            case PCF_BTN_DOWN: volume_down_button_.TriggerLongPress(); break;
+            case PCF_BTN_LEFT: backlight_up_button_.TriggerLongPress(); break;
+            case PCF_BTN_RIGHT: backlight_down_button_.TriggerLongPress(); break;
+            case PCF_BTN_MIDDLE: boot_button_.TriggerLongPress(); break;
+            case PCF_BTN_RST: SystemReset::FactoryReset(); break;
         }
-
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
-*/
-	
-    void InitializeBatteryMonitor() {
-        adc_battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_1, ADC_CHANNEL_8, 200000, 200000, GPIO_NUM_NC);
     }
 
-    static void TouchTask(void *arg) {
+    // ---------------- PCF BUTTON TASK ----------------
+    static void PcfButtonTask(void *arg)
+    {
         auto *self = static_cast<MariaAi*>(arg);
-        auto &app = Application::GetInstance();
-
-        uint32_t last_tap = 0;
-        uint32_t down_start = 0;
-        bool down = false;
-        uint16_t last_y = 0;
-        bool is_sliding = false;
-        int slide_mode = 0; // 1: brightness, 2: volume
+        uint8_t last = pcf_state;
+        uint32_t press_start[8] = {0};
+        bool pressed[8] = {false};
 
         while (true) {
-            bool t;
-            uint16_t x, y;
-            if (self->touch_.Read(t, x, y)) {
-                uint32_t now = esp_timer_get_time() / 1000;
+            uint8_t cur = self->PcfRead();
+            uint32_t now = esp_timer_get_time() / 1000;
 
-                if (t) {
-                    if (!down) {
-                        down = true;
-                        down_start = now;
-                        last_y = y;
-                        is_sliding = false;
-                        // Map touch coordinates to display orientation
-                        if (x < 60) slide_mode = 1;
-                        else if (x > 180) slide_mode = 2;
-                        else slide_mode = 0;
-                    } else {
-                        // Slide detection
-                        int dy = (int)y - (int)last_y;
-                        if (std::abs(dy) > 10) {
-                        
-                        if (slide_mode == 1) {
-                            is_sliding = true;
-                            int b = self->GetBacklight()->brightness();
-                            b -= dy / 5;
-                            if (b < 1) b = 1;
-                            if (b > 100) b = 100;
-                            self->GetBacklight()->SetBrightness(b);
-                            
-                            // Afișează luminozitatea pe display
-                            char msg[32];
-                            snprintf(msg, sizeof(msg), "Luminozitate: %d%%", b);
-                            self->GetDisplay()->ShowNotification(msg);
-                            
-                            } else if (slide_mode == 2) {
-                            is_sliding = true;
-                            auto codec = self->GetAudioCodec();
-                            int v = codec->output_volume();
-                            v -= dy / 5;
-                            if (v < 0) v = 0;
-                            if (v > 100) v = 100;
-                            codec->SetOutputVolume(v);
-                            
-                            // Afișează volumul pe display
-                            char msg[32];
-                            snprintf(msg, sizeof(msg), "Volum: %d%%", v);
-                            self->GetDisplay()->ShowNotification(msg);
-                            }
-                            last_y = y;
-                        }
+            uint8_t changed = last ^ cur;
+            if (changed) {
+                for (int pin = 1; pin <= 6; pin++) {
+                    bool is_low = !(cur & (1 << pin));
+
+                    if (is_low && !pressed[pin]) {
+                        pressed[pin] = true;
+                        press_start[pin] = now;
+                    }
+
+                    if (!is_low && pressed[pin]) {
+                        uint32_t duration = now - press_start[pin];
+                        pressed[pin] = false;
+
+                        if (duration < 700)
+                            self->HandlePcfClick(pin);
+                        else
+                            self->HandlePcfLongPress(pin);
                     }
                 }
 
-                if (!t && down) {
-                    down = false;
-                    if (!is_sliding) {
-                        uint32_t press = now - down_start;
-                        if (press > 3000) {
-                            self->EnterWifiConfigMode();
-                        } else if (now - last_tap < 250) {
-                            app.StartListening();
-                            last_tap = 0;
-                        } else {
-                            app.ToggleChatState();
-                            last_tap = now;
-                        }
-                    }
-                }
+                last = cur;
             }
 
             vTaskDelay(pdMS_TO_TICKS(20));
         }
+    }
+
+public:
+    MariaAi():
+        boot_button_(BOOT_BUTTON_GPIO),
+        volume_up_button_(VOLUME_UP_BUTTON_GPIO),
+        volume_down_button_(VOLUME_DOWN_BUTTON_GPIO),
+        backlight_up_button_(BACKLIGHT_UP_BUTTON_GPIO),
+        backlight_down_button_(BACKLIGHT_DOWN_BUTTON_GPIO)
+    {
+        InitializeI2c();
+        InitializePcf();
+        InitializeBatteryMonitor();
+        InitializeSpi();
+        InitializeLcdDisplay();
+        InitializeTouch();
+        InitializeButtons();
+        InitializeTools();
+        GetBacklight()->SetBrightness(100);
+
+        // Setare stare inițială PCF
+        pcf_state = 0xFE;
+        PcfWriteState();
+
+        // Task PCF
+        xTaskCreatePinnedToCore(PcfButtonTask, "pcf_buttons", 4096, this, 5, nullptr, 1);
+
+        // SD card
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        sd_card_mount();
+
+        // Webserver
+        if (!web_server_started_) {
+            web_server_started_ = true;
+            xTaskCreate(WebServerTask, "webserver_task", 4096, this, 5, nullptr);
+        }
+    }
+
+    // ---------------- INITIALIZĂRI ----------------
+
+    void InitializePcf() {
+        i2c_device_config_t pcf_cfg = {
+            .device_address = 0x27,
+            .scl_speed_hz = 100000,
+            .scl_wait_us = 0,
+        };
+        ESP_ERROR_CHECK(i2c_master_bus_add_device(codec_i2c_bus_, &pcf_cfg, &pcf_dev));
+        ESP_LOGI("PCF", "PCF8574 initialized OK");
+    }
+
+    void InitializeBatteryMonitor() {
+        adc_battery_monitor_ = new AdcBatteryMonitor(ADC_UNIT_1, ADC_CHANNEL_8, 200000, 200000, GPIO_NUM_NC);
     }
 
     void InitializeTouch() {
@@ -238,9 +230,7 @@ static void PcfTestTask(void *arg)
             .glitch_ignore_cnt = 7,
             .intr_priority = 0,
             .trans_queue_depth = 0,
-            .flags = {
-                .enable_internal_pullup = 1,
-            },
+            .flags = { .enable_internal_pullup = 1 },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &codec_i2c_bus_));
     }
@@ -250,8 +240,6 @@ static void PcfTestTask(void *arg)
         buscfg.mosi_io_num = DISPLAY_MOSI_PIN;
         buscfg.miso_io_num = DISPLAY_MIS0_PIN;
         buscfg.sclk_io_num = DISPLAY_SCK_PIN;
-        buscfg.quadwp_io_num = GPIO_NUM_NC;
-        buscfg.quadhd_io_num = GPIO_NUM_NC;
         buscfg.max_transfer_sz = DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(uint16_t);
         ESP_ERROR_CHECK(spi_bus_initialize(LCD_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
     }
@@ -259,84 +247,72 @@ static void PcfTestTask(void *arg)
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-             // During startup (before connected), pressing BOOT button enters Wi-Fi config mode without reboot
-           if (app.GetDeviceState() == kDeviceStateStarting) {
+            if (app.GetDeviceState() == kDeviceStateStarting) {
                 EnterWifiConfigMode();
                 return;
             }
             app.ToggleChatState();
         });
- 
+
         volume_up_button_.OnClick([this]() {
             auto codec = GetAudioCodec();
-            auto volume = codec->output_volume() + 10;
-            if (volume > 100) {
-                volume = 100;
-            }
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
+            int volume = codec->output_volume() + 10;
+            if (volume > 100) volume = 100;
             codec->SetOutputVolume(volume);
-            
+            GetDisplay()->ShowNotification("Volum: " + std::to_string(volume/10));
         });
 
         volume_up_button_.OnLongPress([this]() {
             GetAudioCodec()->SetOutputVolume(100);
-            GetDisplay()->ShowNotification(Lang::Strings::MAX_VOLUME);
+            GetDisplay()->ShowNotification("Volum MAX");
         });
 
         volume_down_button_.OnClick([this]() {
             auto codec = GetAudioCodec();
-            auto volume = codec->output_volume() - 10;
-            if (volume < 0) {
-                volume = 0;
-            }
+            int volume = codec->output_volume() - 10;
+            if (volume < 0) volume = 0;
             codec->SetOutputVolume(volume);
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume/10));
+            GetDisplay()->ShowNotification("Volum: " + std::to_string(volume/10));
         });
 
         volume_down_button_.OnLongPress([this]() {
             GetAudioCodec()->SetOutputVolume(0);
-            GetDisplay()->ShowNotification(Lang::Strings::MUTED);
+            GetDisplay()->ShowNotification("Mut");
         });
-    // 🔥 BACKLIGHT UP BUTTON
-    backlight_up_button_.OnClick([this]() {
-        auto backlight = GetBacklight();
-        int b = backlight->brightness() + 10;
-        if (b > 100) b = 100;
-        backlight->SetBrightness(b);
 
-        GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
-    });
+        backlight_up_button_.OnClick([this]() {
+            auto backlight = GetBacklight();
+            int b = backlight->brightness() + 10;
+            if (b > 100) b = 100;
+            backlight->SetBrightness(b);
+            GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
+        });
 
-    backlight_up_button_.OnLongPress([this]() {
-        auto backlight = GetBacklight();
-        backlight->SetBrightness(100);
-        GetDisplay()->ShowNotification("Luminozitate MAX");
-    });
+        backlight_up_button_.OnLongPress([this]() {
+            auto backlight = GetBacklight();
+            backlight->SetBrightness(100);
+            GetDisplay()->ShowNotification("Luminozitate MAX");
+        });
 
-    // 🔥 BACKLIGHT DOWN BUTTON
-    backlight_down_button_.OnClick([this]() {
-        auto backlight = GetBacklight();
-        int b = backlight->brightness() - 10;
-        if (b < 1) b = 1;
-        backlight->SetBrightness(b);
+        backlight_down_button_.OnClick([this]() {
+            auto backlight = GetBacklight();
+            int b = backlight->brightness() - 10;
+            if (b < 1) b = 1;
+            backlight->SetBrightness(b);
+            GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
+        });
 
-        GetDisplay()->ShowNotification("Luminozitate: " + std::to_string(b) + "%");
-    });
-
-    backlight_down_button_.OnLongPress([this]() {
-        auto backlight = GetBacklight();
-        backlight->SetBrightness(1);
-        GetDisplay()->ShowNotification("Luminozitate MIN");
-    });
-
- }
-
+        backlight_down_button_.OnLongPress([this]() {
+            auto backlight = GetBacklight();
+            backlight->SetBrightness(1);
+            GetDisplay()->ShowNotification("Luminozitate MIN");
+        });
+    }
 
     void InitializeLcdDisplay() {
         esp_lcd_panel_io_handle_t panel_io = nullptr;
         esp_lcd_panel_handle_t panel = nullptr;
-        // Inițializarea IO-urilor de control al ecranului LCD
-        ESP_LOGD(TAG, "Install panel IO");
+
         esp_lcd_panel_io_spi_config_t io_config = {};
         io_config.cs_gpio_num = DISPLAY_CS_PIN;
         io_config.dc_gpio_num = DISPLAY_DC_PIN;
@@ -347,97 +323,29 @@ static void PcfTestTask(void *arg)
         io_config.lcd_param_bits = 8;
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(LCD_SPI_HOST, &io_config, &panel_io));
 
-        // Inițializați cipul driverului ecranului LCD
-        ESP_LOGD(TAG, "Install LCD driver");
         esp_lcd_panel_dev_config_t panel_config = {};
         panel_config.reset_gpio_num = DISPLAY_RST_PIN;
         panel_config.rgb_ele_order = DISPLAY_RGB_ORDER;
         panel_config.bits_per_pixel = 16;
         ESP_ERROR_CHECK(esp_lcd_new_panel_ili9341(panel_io, &panel_config, &panel));
-        ESP_LOGI(TAG, "Install LCD driver ILI9341");
-        esp_lcd_panel_reset(panel);
 
+        esp_lcd_panel_reset(panel);
         esp_lcd_panel_init(panel);
         esp_lcd_panel_invert_color(panel, DISPLAY_INVERT_COLOR);
         esp_lcd_panel_swap_xy(panel, DISPLAY_SWAP_XY);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
+
         display_ = new SpiLcdDisplay(panel_io, panel,
             DISPLAY_WIDTH, DISPLAY_HEIGHT,
             DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y,
             DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
     }
 
-    // 物联网初始化，添加对 AI 可见设备
     void InitializeTools() {
         static LampController lamp(LAMP_GPIO);
     }
 
-
-    void InitializePcf() {
-
-    // 🔥 AICI — FIX AICI VINE PCF
-    i2c_device_config_t pcf_cfg = {
-        .device_address = 0x27,
-        .scl_speed_hz = 100000,
-        .scl_wait_us = 0,
-    };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(codec_i2c_bus_, &pcf_cfg, &pcf_dev));
-    ESP_LOGI("PCF", "PCF8574 initialized OK");
-
-// 🔥 AICI — TEST DE CITIRE (varianta corectă)
-uint8_t val = 0xFF;
-uint8_t dummy = 0x00;
-
-if (i2c_master_transmit_receive(pcf_dev, &dummy, 1, &val, 1, 50) == ESP_OK) {
-    ESP_LOGI("PCF", "Read OK, value = 0x%02X", val);
-} else {
-    ESP_LOGE("PCF", "Read FAILED");
-}
-
-// 🔥 TEST DE WRITE — verificăm dacă PCF răspunde la scriere
-uint8_t out = 0xFF;  // toate pinii HIGH (intrări cu pull-up)
-esp_err_t err = i2c_master_transmit(pcf_dev, &out, 1, 50);
-
-if (err == ESP_OK) {
-    ESP_LOGI("PCF", "WRITE OK");
-} else {
-    ESP_LOGE("PCF", "WRITE FAILED: %s", esp_err_to_name(err));
-}
-    }
-
-public:
-MariaAi():
-    boot_button_(BOOT_BUTTON_GPIO),
-    volume_up_button_(VOLUME_UP_BUTTON_GPIO),
-    volume_down_button_(VOLUME_DOWN_BUTTON_GPIO),
-    backlight_up_button_(BACKLIGHT_UP_BUTTON_GPIO),
-    backlight_down_button_(BACKLIGHT_DOWN_BUTTON_GPIO)
-	{
-        InitializeI2c();
-        InitializePcf();
-        InitializeBatteryMonitor();
-        InitializeSpi();
-        InitializeLcdDisplay();
-        InitializeTouch();
-        InitializeButtons();
-        InitializeTools();
-        GetBacklight()->SetBrightness(100);
-
-//xTaskCreatePinnedToCore(PcfTestTask, "pcf_test", 2048, NULL, 5, NULL, 0);
-
-		// Montezi SD cardul
-		vTaskDelay(pdMS_TO_TICKS(3000));  // 1 s pentru stabilizare alimentare SDMMC
-		sd_card_mount();
-
-        // Pornim task-ul de webserver o singurÄƒ datÄƒ
-if (!web_server_started_) {
-    web_server_started_ = true;
-    ESP_LOGI(TAG, "Creating WebServerTask...");
-    xTaskCreate(WebServerTask, "webserver_task", 4096, this, 5, nullptr);
-}
-
-    }
-
+    // ---------------- OVERRIDES ----------------
 
     virtual Led *GetLed() override {
         static SingleLed led(BUILTIN_LED_GPIO);
@@ -452,7 +360,9 @@ if (!web_server_started_) {
         return &audio_codec;
     }
 
-    virtual Display *GetDisplay() override { return display_; }
+    virtual Display *GetDisplay() override { 
+        return display_; 
+    }
 
     virtual Backlight *GetBacklight() override {
         static PwmBacklight backlight(DISPLAY_BACKLIGHT_PIN, DISPLAY_BACKLIGHT_OUTPUT_INVERT);
@@ -468,3 +378,4 @@ if (!web_server_started_) {
 };
 
 DECLARE_BOARD(MariaAi);
+
