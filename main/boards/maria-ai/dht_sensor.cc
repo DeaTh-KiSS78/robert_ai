@@ -1,15 +1,38 @@
 #include "dht_sensor.h"
 #include <stdio.h>
 #include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 static const char* TAG = "DHT_SENSOR";
+
+// 🔥 TASK PERIODIC (10 minute)
+static void DhtBackgroundTask(void* arg) {
+    DhtSensor* self = static_cast<DhtSensor*>(arg);
+
+    while (true) {
+        bool ok = self->dht_.ReadData(3);
+
+        if (ok) {
+            ESP_LOGI(TAG,
+                     "Periodic reading -> Temp: %d°C, Humidity: %d%%",
+                     self->dht_.GetTemperature(),
+                     self->dht_.GetHumidity());
+        } else {
+            ESP_LOGW(TAG, "Periodic reading failed");
+        }
+
+        // 10 minute = 600000 ms
+        vTaskDelay(pdMS_TO_TICKS(600000));
+    }
+}
 
 DhtSensor::DhtSensor(gpio_num_t pin)
     : dht_(pin)
 {
     auto& mcp = McpServer::GetInstance();
 
-    // 🔥 TOOL PRINCIPAL
+    // 🔥 TOOL PRINCIPAL: citire temperatură + umiditate
     mcp.AddTool(
         "self.sensor.dht.read",
         "Read temperature and humidity from DHT sensor",
@@ -19,6 +42,7 @@ DhtSensor::DhtSensor(gpio_num_t pin)
             bool ok = dht_.ReadData(3);
 
             if (!ok) {
+                // fallback dacă avem date proaspete (<30 sec)
                 if (dht_.IsDataFresh(30000)) {
                     char buf[128];
                     snprintf(buf, sizeof(buf),
@@ -58,7 +82,8 @@ DhtSensor::DhtSensor(gpio_num_t pin)
                 int temp = dht_.GetTemperature();
                 int hum  = dht_.GetHumidity();
 
-                ESP_LOGI(TAG, "DHT test success! Temp: %d°C, Humidity: %d%%",
+                ESP_LOGI(TAG,
+                         "DHT test success! Temp: %d°C, Humidity: %d%%",
                          temp, hum);
 
                 char buf[128];
@@ -72,5 +97,16 @@ DhtSensor::DhtSensor(gpio_num_t pin)
 
             return "{\"ok\": false, \"error\": \"Sensor test failed. Check wiring and GPIO.\"}";
         }
+    );
+
+    // 🔥 PORNIM TASK-UL PERIODIC
+    xTaskCreatePinnedToCore(
+        DhtBackgroundTask,
+        "dht_bg_task",
+        4096,
+        this,
+        5,
+        nullptr,
+        0
     );
 }
