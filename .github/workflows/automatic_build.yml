@@ -171,14 +171,13 @@ jobs:
         run: |
           rm -f releases/${{ needs.build.outputs.version }}/*.zip || true
 
-      - name: Run release finalizer (force download)
+      - name: Run release finalizer (always downloads ZIP)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python scripts/download_github_runs.py \
             "${{ needs.build.outputs.version }}" \
-            "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --force
+            "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Create and push tag
         run: |
