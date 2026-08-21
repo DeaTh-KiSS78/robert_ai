@@ -5,11 +5,11 @@
 static const char* TAG = "DHT_SENSOR";
 
 DhtSensor::DhtSensor(gpio_num_t pin)
-    : dht_(pin)   // inițializezi driverul direct
+    : dht_(pin)
 {
     auto& mcp = McpServer::GetInstance();
 
-    // 🔥 TOOL PRINCIPAL: citire temperatură + umiditate
+    // 🔥 TOOL PRINCIPAL
     mcp.AddTool(
         "self.sensor.dht.read",
         "Read temperature and humidity from DHT sensor",
@@ -19,13 +19,12 @@ DhtSensor::DhtSensor(gpio_num_t pin)
             bool ok = dht_.ReadData(3);
 
             if (!ok) {
-                // Dacă citirea a eșuat, dar avem date proaspete (<30 sec)
                 if (dht_.IsDataFresh(30000)) {
                     char buf[128];
                     snprintf(buf, sizeof(buf),
-                        "{\"cached\": true, \"age_ms\": %u, "
-                        "\"temperature\": %.1f, \"humidity\": %.1f}",
-                        dht_.GetDataFreshness(),
+                        "{\"cached\": true, \"age_ms\": %lu, "
+                        "\"temperature\": %d, \"humidity\": %d}",
+                        (unsigned long)dht_.GetDataFreshness(),
                         dht_.GetTemperature(),
                         dht_.GetHumidity());
                     return buf;
@@ -34,10 +33,9 @@ DhtSensor::DhtSensor(gpio_num_t pin)
                 return "{\"error\": \"Failed to read DHT sensor\"}";
             }
 
-            // Citire reușită
             char buf[64];
             snprintf(buf, sizeof(buf),
-                "{\"temperature\": %.1f, \"humidity\": %.1f}",
+                "{\"temperature\": %d, \"humidity\": %d}",
                 dht_.GetTemperature(),
                 dht_.GetHumidity());
 
@@ -45,7 +43,7 @@ DhtSensor::DhtSensor(gpio_num_t pin)
         }
     );
 
-    // 🔥 TOOL DE TEST: verifică dacă senzorul funcționează
+    // 🔥 TOOL DE TEST
     mcp.AddTool(
         "self.sensor.dht.test",
         "Test if the DHT sensor is working properly",
@@ -57,15 +55,15 @@ DhtSensor::DhtSensor(gpio_num_t pin)
             bool ok = dht_.ReadData(3);
 
             if (ok) {
-                float temp = dht_.GetTemperature();
-                float hum  = dht_.GetHumidity();
+                int temp = dht_.GetTemperature();
+                int hum  = dht_.GetHumidity();
 
-                ESP_LOGI(TAG, "DHT test success! Temp: %.1f°C, Humidity: %.1f%%",
+                ESP_LOGI(TAG, "DHT test success! Temp: %d°C, Humidity: %d%%",
                          temp, hum);
 
                 char buf[128];
                 snprintf(buf, sizeof(buf),
-                    "{\"ok\": true, \"temperature\": %.1f, \"humidity\": %.1f}",
+                    "{\"ok\": true, \"temperature\": %d, \"humidity\": %d}",
                     temp, hum);
                 return buf;
             }
