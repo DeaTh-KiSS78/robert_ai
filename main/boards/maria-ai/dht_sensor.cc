@@ -21,18 +21,22 @@ void DhtSensor::BackgroundTask(void* arg) {
                      "Periodic reading -> Temp: %d°C, Humidity: %d%%",
                      temp, hum);
 
-            // 🔥 Afișare pe display prin MCP
-            auto& mcp = McpServer::GetInstance();
-            PropertyList props;
+            // 🔥 Afișare pe display prin MCP JSONRPC
+            auto& app = Application::GetInstance();
 
             char msg[64];
             snprintf(msg, sizeof(msg),
                      "Temp: %d°C  Hum: %d%%",
                      temp, hum);
 
-            props.Set("text", msg);
-            mcp.CallTool("self.display.show_notification", props);
+            char json[256];
+            snprintf(json, sizeof(json),
+                "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\","
+                "\"params\":{\"name\":\"self.display.show_notification\","
+                "\"arguments\":{\"text\":\"%s\"}},\"id\":999}",
+                msg);
 
+            app.SendMcpMessage(json);
         } else {
             ESP_LOGW(TAG, "Periodic reading failed");
         }
