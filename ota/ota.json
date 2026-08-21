@@ -1,6 +1,6 @@
 {
   "firmware": {
     "version": "2.4.2",
-    "url": "https://github.com/DeaTh-KiSS78/robert_ai/releases/download/v2.4.2/v2.4.2_maria-ai.bin"
+    "url": "https://cdn.jsdelivr.net/gh/DeaTh-KiSS78/robert_ai@main/ota/v2.4.2_maria-ai.bin"
   }
 }
