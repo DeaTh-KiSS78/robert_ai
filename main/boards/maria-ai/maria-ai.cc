@@ -11,6 +11,7 @@
 #include "config.h"
 #include "mcp_server.h"
 #include "lamp_controller.h"
+#include "dht_sensor.h"
 #include "assets/lang_config.h"
 #include "adc_battery_monitor.h"
 #include "sd_card.h"
@@ -27,7 +28,6 @@
 #include "led/single_led.h"
 #include "system_reset.h"
 #include "esp_lcd_ili9341.h"
-#include "dht11.h"
 
 #define TAG "MariaAi"
 
@@ -410,6 +410,8 @@ backlight_down_button_.OnClick(cb_backlight_down_);
     // 物联网初始化，添加对 AI 可见设备
     void InitializeTools() {
         static LampController lamp(LAMP_GPIO);
+		static DhtSensor dht(DHT11_PIN);
+
     }
 	
 	void InitializePcf() {

@@ -11,26 +11,26 @@ DHT11::DHT11(gpio_num_t pin) : pin_(pin) {
 }
 
 void DHT11::Init() {
-    // 配置为开漏输出模式，需要外部上拉电阻
+// Configurarea pentru modul de ieșire open-drain necesită o rezistență externă de tracțiune
     gpio_config_t io_conf = {};
-    io_conf.mode = GPIO_MODE_OUTPUT_OD;  // 开漏输出模式
+    io_conf.mode = GPIO_MODE_OUTPUT_OD;  // Mod de ieșire cu drenaj deschis
     io_conf.pin_bit_mask = (1ULL << pin_);
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;   // 启用内部上拉电阻
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;   // Activează rezistența internă de tracțiune
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     gpio_config(&io_conf);
     
-    // 设置为高电平
+// Setat la nivel înalt
     gpio_set_level(pin_, 1);
     
-    // 等待DHT11上电稳定
+// Se așteaptă ca DHT11 să se pornească și să se stabilizeze
     vTaskDelay(1200 / portTICK_PERIOD_MS);
     
-    // 发送一个"假"的起始信号，然后丢弃结果，确保DHT11处于稳定状态
+// Trimite un semnal de pornire „fals”, apoi elimină rezultatul pentru a te asigura că DHT11 este într-o stare stabilă.
     gpio_set_level(pin_, 0);
-    vTaskDelay(25 / portTICK_PERIOD_MS);  // 保持低电平至少18ms
+    vTaskDelay(25 / portTICK_PERIOD_MS);  // Mențineți un nivel scăzut timp de cel puțin 18ms
     gpio_set_level(pin_, 1);
-    vTaskDelay(50 / portTICK_PERIOD_MS);  // 给DHT11足够的恢复时间
+    vTaskDelay(50 / portTICK_PERIOD_MS);  // Acordă-i lui DHT11 suficient timp de recuperare
     
     ESP_LOGI(TAG, "DHT11 initialized on GPIO %d with open-drain mode", pin_);
 }
@@ -49,12 +49,12 @@ esp_err_t DHT11::DataRead() {
     esp_err_t result = ESP_FAIL;
     memset(buffer_, 0, sizeof(buffer_));
     
-    // 完全重置GPIO状态
-    // 先释放GPIO，让它回到默认状态
+// Resetează complet starea GPIO
+// Mai întâi eliberează GPIO-ul, readucându-l la starea implicită
     gpio_reset_pin(pin_);
-    vTaskDelay(20 / portTICK_PERIOD_MS);  // 增加到20ms，给更多稳定时间
+    vTaskDelay(20 / portTICK_PERIOD_MS);  // Mărit la 20ms pentru a permite mai mult timp de stabilizare
     
-    // 重新配置为开漏输出模式
+// Reconfigurare la modul de ieșire open-drain
     gpio_config_t io_conf = {};
     io_conf.mode = GPIO_MODE_OUTPUT_OD;
     io_conf.pin_bit_mask = (1ULL << pin_);
@@ -63,69 +63,69 @@ esp_err_t DHT11::DataRead() {
     io_conf.intr_type = GPIO_INTR_DISABLE;
     gpio_config(&io_conf);
     
-    // 设置为输出模式并保持高电平
+// Setează la modul de ieșire și menține nivelul ridicat
     gpio_set_direction(pin_, GPIO_MODE_OUTPUT);
     gpio_set_level(pin_, 1);
-    vTaskDelay(200 / portTICK_PERIOD_MS);  // 增加到200ms，给DHT11更多稳定时间
+    vTaskDelay(200 / portTICK_PERIOD_MS);  // Crescut la 200ms, oferind DHT11 mai mult timp pentru a se stabiliza.
     
-    // 1. 主机发送开始信号
+// 1. Gazda trimite un semnal de pornire
     gpio_set_level(pin_, 0);
-    vTaskDelay(25 / portTICK_PERIOD_MS);  // 保持低电平至少18ms，增加到25ms更稳定
+    vTaskDelay(25 / portTICK_PERIOD_MS);  // Mențineți nivelul scăzut timp de cel puțin 18ms, creșterea lui la 25ms îl va face mai stabil.
     gpio_set_level(pin_, 1);
-    esp_rom_delay_us(40);  // 增加到40us，给更多稳定时间
+    esp_rom_delay_us(40);  // Crescut la 40us, permițând mai mult timp pentru stabilizare.
     
-    // 2. 切换为输入模式，等待DHT11响应
+// 2. Comutați la modul de introducere a datelor și așteptați răspunsul DHT11.
     gpio_set_direction(pin_, GPIO_MODE_INPUT);
     
-    // 3. 等待DHT11响应（低电平）
-    result = WaitPinState(100, 0);  // 增加超时时间到100us
+// 3. Așteptați răspunsul DHT11 (nivel scăzut)
+    result = WaitPinState(100, 0);  // Creșterea timeout-ului la 100us
     if (result == ESP_FAIL) {
 /*         ESP_LOGE(TAG, "Phase A Fail, DHT11 not responding with LOW"); */
         return ESP_FAIL;
     }
     
-    // 4. 等待DHT11拉高（80us低电平响应结束）
-    result = WaitPinState(100, 1);  // 增加超时时间到100us
+// 4. Așteptați ca DHT11 să devină high (răspunsul la nivel scăzut de 80us se termină)
+    result = WaitPinState(100, 1);  // Creșterea timeout-ului la 100us
     if (result == ESP_FAIL) {
 /*         ESP_LOGE(TAG, "Phase B Fail, DHT11 not responding with HIGH"); */
         return ESP_FAIL;
     }
     
-    // 5. 等待DHT11拉低（80us高电平准备结束）
-    result = WaitPinState(100, 0);  // 增加超时时间到100us
+// 5. Așteptați ca DHT11 să ajungă la un nivel scăzut (nivelul maxim de 80us este pe cale să se termine)
+    result = WaitPinState(100, 0);  // Creșterea timeout-ului la 100us
     if (result == ESP_FAIL) {
 /*         ESP_LOGE(TAG, "Phase C Fail, DHT11 not starting data transmission"); */
         return ESP_FAIL;
     }
     
-    // 6. 读取40位数据（5字节）
+// 6. Citește 40 biți de date (5 octeți)
     for (int i = 0; i < 5; i++) {
         uint8_t byte_value = 0;
         for (int j = 0; j < 8; j++) {
-            // 等待数据位开始（高电平）
-            result = WaitPinState(100, 1);  // 增加超时时间到100us
+            // Se așteaptă pornirea biților de date (nivel înalt)
+            result = WaitPinState(100, 1);  // Creșterea timeout-ului la 100us
             if (result == ESP_FAIL) {
 /*                 ESP_LOGE(TAG, "Bit %d.%d start timeout", i, j); */
-                // 恢复引脚状态后再返回
+                // Restaurează starea pinului și apoi returnează
                 gpio_set_direction(pin_, GPIO_MODE_OUTPUT);
                 gpio_set_level(pin_, 1);
                 return ESP_FAIL;
             }
             
-            // 延时30us，然后检查电平
-            // 如果仍为高电平，则为1，否则为0
-            esp_rom_delay_us(40);  // 增加到40us，给更多时间稳定
+            // Întârziere de 30µs, apoi verificare nivel.
+            // Dacă este încă ridicat, atunci este 1; altfel, este 0.
+            esp_rom_delay_us(40);  // Mărit la 40us pentru a permite mai mult timp pentru stabilizare
             if (gpio_get_level(pin_) == 1) {
                 byte_value = (byte_value << 1) | 1;
             } else {
                 byte_value = byte_value << 1;
             }
             
-            // 等待本位结束（低电平）
-            result = WaitPinState(100, 0);  // 增加超时时间到100us
+           // Așteptăm finalizarea acestui bit (nivel scăzut)
+            result = WaitPinState(100, 0);  // Creșterea timeout-ului la 100us
             if (result == ESP_FAIL) {
 /*                 ESP_LOGE(TAG, "Bit %d.%d end timeout", i, j); */
-                // 恢复引脚状态后再返回
+                // Restaurează starea pinului și apoi returnează
                 gpio_set_direction(pin_, GPIO_MODE_OUTPUT);
                 gpio_set_level(pin_, 1);
                 return ESP_FAIL;
@@ -134,7 +134,7 @@ esp_err_t DHT11::DataRead() {
         buffer_[i] = byte_value;
     }
     
-    // 7. 校验数据
+// 7. Validarea datelor
     uint8_t checksum = buffer_[0] + buffer_[1] + buffer_[2] + buffer_[3];
     if (checksum != buffer_[4]) {
 /*         ESP_LOGE(TAG, "Checksum error: calc=0x%02x, recv=0x%02x", checksum, buffer_[4]);
@@ -143,15 +143,22 @@ esp_err_t DHT11::DataRead() {
         return ESP_FAIL;
     }
     
-    // 8. 更新温湿度数据
-    humidity_ = buffer_[0];     // 湿度整数部分
-    temperature_ = buffer_[2];  // 温度整数部分
+// 8. Actualizați datele de temperatură și umiditate
+    //humidity_ = buffer_[0];     // Partea întreagă a umidității
+    //temperature_ = buffer_[2];  // Partea întreagă a temperaturii
+	
+	uint16_t raw_h = (buffer_[0] << 8) | buffer_[1];
+	uint16_t raw_t = (buffer_[2] << 8) | buffer_[3];
+	
+	humidity_ = raw_h / 10.0f;
+	temperature_ = raw_t / 10.0f;
+
     
-    // 9. 记录成功读取的时间
+// 9. Înregistrați momentul citirii reușite.
     last_read_time_ = esp_timer_get_time();
     success_count_++;
     
-    // 10. 恢复引脚状态
+// 10. Restaurați starea pinului
     gpio_set_direction(pin_, GPIO_MODE_OUTPUT);
     gpio_set_level(pin_, 1);
     
@@ -164,26 +171,26 @@ esp_err_t DHT11::DataRead() {
 bool DHT11::ReadData(uint8_t retry_count) {
     ESP_LOGI(TAG, "Starting DHT11 reading with retry_count=%d...", retry_count);
     
-    // 检查是否满足最小读取间隔
+    // Verifică dacă este îndeplinit intervalul minim de citire
     int64_t current_time = esp_timer_get_time();
     if (last_read_time_ > 0 && (current_time - last_read_time_) < MIN_READ_INTERVAL_US) {
         int wait_ms = (MIN_READ_INTERVAL_US - (current_time - last_read_time_)) / 1000;
         ESP_LOGW(TAG, "Reading too frequent! Last read was %lld us ago, waiting %d ms...", 
                  (current_time - last_read_time_), wait_ms);
         
-        // 等待直到满足最小间隔
-        vTaskDelay((wait_ms + 100) / portTICK_PERIOD_MS); // 额外增加100ms作为安全边界
+        // Așteptați până când se atinge intervalul minim
+        vTaskDelay((wait_ms + 100) / portTICK_PERIOD_MS); // Adăugați încă 100ms ca marjă de siguranță
     }
     
-    // 在读取前先等待一段时间，确保DHT11处于稳定状态
+    // Așteptați puțin înainte de citire pentru a vă asigura că DHT11 este într-o stare stabilă.
     vTaskDelay(100 / portTICK_PERIOD_MS);
     
-    // 尝试读取，如果失败则重试
+    // Încercare de citire; reîncercați dacă eșuează.
     bool success = false;
     for (uint8_t i = 0; i <= retry_count; i++) {
         if (i > 0) {
             ESP_LOGI(TAG, "Retry %d/%d after delay...", i, retry_count);
-            // 每次重试增加等待时间，给DHT11更多恢复时间
+            // Fiecare reîncercare crește timpul de așteptare, oferind DHT11 mai mult timp de recuperare.
             vTaskDelay((1000 + i * 500) / portTICK_PERIOD_MS); 
         }
         
@@ -195,9 +202,9 @@ bool DHT11::ReadData(uint8_t retry_count) {
             break;
         }
         
-        // 每次失败后完全复位引脚状态
+        // Resetează complet starea pinului după fiecare eșec
         gpio_reset_pin(pin_);
-        vTaskDelay(50 / portTICK_PERIOD_MS);  // 增加到50ms
+        vTaskDelay(50 / portTICK_PERIOD_MS);  // Mărit la 50ms
     }
     
     if (!success) {
@@ -210,13 +217,13 @@ bool DHT11::ReadData(uint8_t retry_count) {
 
 uint32_t DHT11::GetDataFreshness() const {
     if (last_read_time_ == 0) {
-        return UINT32_MAX; // 表示从未成功读取过数据
+        return UINT32_MAX; // Indică faptul că datele nu au fost niciodată citite cu succes.
     }
     
     int64_t current_time = esp_timer_get_time();
     int64_t elapsed_us = current_time - last_read_time_;
     
-    // 转换为毫秒并确保不溢出
+    // Conversia în milisecunde și asigurarea că nu există depășire
     uint32_t elapsed_ms = (elapsed_us / 1000);
     if (elapsed_ms > UINT32_MAX) {
         return UINT32_MAX;

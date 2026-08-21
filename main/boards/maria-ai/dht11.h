@@ -14,64 +14,64 @@ namespace xiaozhi {
 
 class DHT11 {
  public:
-  // 构造函数，需指定DHT11连接的GPIO引脚
+  // Constructorul necesită specificarea pinilor GPIO conectați la DHT11.
   explicit DHT11(gpio_num_t pin);
   
-  // 读取温度湿度，返回是否读取成功
-  // 如果设置了retry_count > 0，会在失败时自动重试
+// Citește temperatura și umiditatea, returnează dacă citirea a fost reușită
+// Dacă este setat retry_count > 0, va reîncerca automat în caz de eșec.
   bool ReadData(uint8_t retry_count = 3);
   
-  // 获取最近一次读取的湿度值（整数部分）
+// Obține cea mai recentă valoare citită a umidității (parte întreagă)
   uint8_t GetHumidity() const { return humidity_; }
   
-  // 获取最近一次读取的温度值（整数部分）
+// Obține cea mai recentă valoare a temperaturii citită (partea întreagă)
   uint8_t GetTemperature() const { return temperature_; }
   
-  // 获取读取成功次数
+// Obține numărul de citiri reușite
   uint32_t GetSuccessCount() const { return success_count_; }
   
-  // 获取读取失败次数
+// Obține numărul de erori de citire
   uint32_t GetFailCount() const { return fail_count_; }
   
-  // 获取数据的新鲜度（自上次成功读取以来的毫秒数）
+// Obține prospețimea datelor (milisecunde de la ultima citire reușită).
   uint32_t GetDataFreshness() const;
   
-  // 数据是否新鲜（小于指定的毫秒数）
+// Datele sunt proaspete (mai puțin decât numărul specificat de milisecunde)?
   bool IsDataFresh(uint32_t max_age_ms = 30000) const;
   
  private:
-  // 初始化DHT11
+// Inițializează DHT11
   void Init();
   
-  // 等待引脚状态变化，带超时检测
+// Se așteaptă schimbarea stării pinului, cu detectarea timeout-ului
   esp_err_t WaitPinState(uint32_t timeout_us, int expected_pin_state);
   
-  // 读取数据
+// Citește datele
   esp_err_t DataRead();
   
-  // DHT11连接的GPIO引脚
+// Pinii GPIO conectați la DHT11
   gpio_num_t pin_;
   
-  // 存储的湿度值（整数部分）
+// Valoare umidității stocată (parte întreagă)
   uint8_t humidity_ = 0;
   
-  // 存储的温度值（整数部分）
+// Valoarea temperaturii stocate (partea întreagă)
   uint8_t temperature_ = 0;
   
-  // 成功计数
+// Număr de succese
   uint32_t success_count_ = 0;
   
-  // 失败计数
+// Număr de erori
   uint32_t fail_count_ = 0;
   
-  // 读取的原始数据
+// Citirea datelor brute
   uint8_t buffer_[5] = {0};
   
-  // 上次成功读取的时间（微秒）
+// Timpul scurs de la ultima citire reușită (în microsecunde)
   int64_t last_read_time_ = 0;
   
-  // 最小读取间隔（微秒）- 4秒
-  // 增加到4秒，给DHT11更多恢复时间
+// Interval minim de citire (microsecunde) - 4 secunde
+// Crescut la 4 secunde pentru a oferi DHT11 un timp de recuperare mai lung
   static const int64_t MIN_READ_INTERVAL_US = 4000000;
 };
 
