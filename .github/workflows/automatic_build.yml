@@ -243,17 +243,17 @@ jobs:
           VERSION=$(date +"%Y.%m.%d.%H.%M.%S")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-- name: Write ota.json
-  run: |
-    FW_VER="${{ needs.build.outputs.version }}"
-    BOARD="${{ needs.build.outputs.board }}"
+      - name: Write ota.json
+        run: |
+          FW_VER="${{ needs.build.outputs.version }}"
+          BOARD="${{ needs.build.outputs.board }}"
 
-    echo "{" > ota/ota.json
-    echo "  \"firmware\": {" >> ota/ota.json
-    echo "    \"version\": \"$FW_VER\"," >> ota/ota.json
-    echo "    \"url\": \"https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/ota/v${FW_VER}_${BOARD}.bin\"" >> ota/ota.json
-    echo "  }" >> ota/ota.json
-    echo "}" >> ota/ota.json
+          echo "{" > ota/ota.json
+          echo "  \"firmware\": {" >> ota/ota.json
+          echo "    \"version\": \"$FW_VER\"," >> ota/ota.json
+          echo "    \"url\": \"https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/ota/v${FW_VER}_${BOARD}.bin\"" >> ota/ota.json
+          echo "  }" >> ota/ota.json
+          echo "}" >> ota/ota.json
 
       - name: Commit OTA files
         run: |
