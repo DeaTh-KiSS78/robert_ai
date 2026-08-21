@@ -112,6 +112,7 @@ jobs:
 
     outputs:
       version: ${{ steps.version.outputs.version }}
+      board: ${{ matrix.board }}
 
     steps:
       - name: Checkout
@@ -211,6 +212,11 @@ jobs:
           files: releases/${{ needs.build.outputs.version }}/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ============================
+      # OTA AUTO-GENERATION SECTION
+      # ============================
+
       - name: Prepare OTA folder
         run: |
           mkdir -p ota
@@ -218,7 +224,7 @@ jobs:
       - name: Extract merged-binary.bin from ZIP
         run: |
           VERSION="${{ needs.build.outputs.version }}"
-          BOARD="${{ github.event.inputs.board }}"
+          BOARD="${{ needs.build.outputs.board }}"
           ZIP="releases/${VERSION}/v${VERSION}_${BOARD}.zip"
 
           echo "Extracting $ZIP"
@@ -241,7 +247,7 @@ jobs:
         run: |
           OTA_VER="${{ steps.otaver.outputs.version }}"
           FW_VER="${{ needs.build.outputs.version }}"
-          BOARD="${{ github.event.inputs.board }}"
+          BOARD="${{ needs.build.outputs.board }}"
 
           echo "{" > ota/ota.json
           echo "  \"firmware\": {" >> ota/ota.json
