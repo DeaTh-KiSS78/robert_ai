@@ -110,9 +110,18 @@ jobs:
     container:
       image: espressif/idf:v6.0.2
 
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Extract version from CMakeLists
+        id: version
+        run: |
+          VERSION=$(grep -oP 'set\(PROJECT_VER\s+"(\K[^"]+)' CMakeLists.txt)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build current variant
         shell: bash
@@ -123,9 +132,6 @@ jobs:
       - name: List build folder (debug)
         run: ls -R ${{ github.workspace }}/build || echo "No build folder found"
 
-      # ---------------------------------------------------------
-      # UPLOAD ARTIFACT + CAPTURE LINK DIRECT DIN OUTPUT
-      # ---------------------------------------------------------
       - name: Upload artifacts
         id: upload
         uses: actions/upload-artifact@v4
@@ -134,9 +140,6 @@ jobs:
           path: ${{ github.workspace }}/build/*.bin
           if-no-files-found: error
 
-      # ---------------------------------------------------------
-      # SEND TELEGRAM NOTIFICATION
-      # ---------------------------------------------------------
       - name: Send Telegram notification (manual only)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
@@ -148,3 +151,34 @@ jobs:
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
             -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
             -d text="🏗 Build Status\nBoard: ${{ matrix.board }}\nVariant: ${{ matrix.name }}\nStatus: $STATUS\nDownload: ${{ steps.upload.outputs.artifact-url }}"
+
+  finalize-release:
+    name: Finalize Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Python deps
+        run: |
+          pip install requests python-dotenv
+
+      - name: Run release finalizer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/download_github_runs.py \
+            "${{ needs.build.outputs.version }}" \
+            "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Commit release files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add releases/
+          git commit -m "Release ${{ needs.build.outputs.version }}"
+          git push
