@@ -167,13 +167,18 @@ jobs:
         run: |
           pip install requests python-dotenv
 
-      - name: Run release finalizer
+      - name: Remove old ZIPs (force overwrite)
+        run: |
+          rm -f releases/${{ needs.build.outputs.version }}/*.zip || true
+
+      - name: Run release finalizer (force download)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python scripts/download_github_runs.py \
             "${{ needs.build.outputs.version }}" \
-            "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --force
 
       - name: Create and push tag
         run: |
@@ -183,7 +188,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-          # Create tag only if it doesn't exist
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping creation."
           else
@@ -196,7 +200,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add releases/
-          git commit -m "Release ${{ needs.build.outputs.version }}"
+          git diff --cached --quiet || git commit -m "Release ${{ needs.build.outputs.version }}"
           git push
 
       - name: Create GitHub Release
