@@ -1,10 +1,10 @@
 #include "dht_sensor.h"
-#include "application.h"
 #include "board.h"
 #include <stdio.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include "display/lcd_display.h"
 
 static const char* TAG = "DHT_SENSOR";
 
@@ -23,13 +23,15 @@ void DhtSensor::BackgroundTask(void* arg) {
                      "Periodic reading -> Temp: %d°C, Humidity: %d%%",
                      temp, hum);
 
-            // 🔥 Afișare directă pe display (identic cu volum/luminozitate)
             char msg[64];
             snprintf(msg, sizeof(msg),
                      "Temp: %d°C  Hum: %d%%",
                      temp, hum);
 
-            auto display = Board::GetInstance().GetDisplay();
+            // 🔥 Afișare simplă, identică cu WebServerTask
+            Board* board = &Board::GetInstance();
+            Display* display = board->GetDisplay();
+
             if (display) {
                 display->ShowNotification(msg);
             }
@@ -38,8 +40,7 @@ void DhtSensor::BackgroundTask(void* arg) {
             ESP_LOGW(TAG, "Periodic reading failed");
         }
 
-        // 1 minut = 60000 ms
-        vTaskDelay(pdMS_TO_TICKS(60000));
+        vTaskDelay(pdMS_TO_TICKS(60000)); // 1 minut
     }
 }
 
