@@ -6,9 +6,10 @@
 
 class DhtSensor {
 public:
-    // Constructorul primește pinul (DHT11_PIN din config.h)
     explicit DhtSensor(gpio_num_t pin);
 
 private:
     xiaozhi::DHT11 dht_;
+
+    static void BackgroundTask(void* arg);
 };

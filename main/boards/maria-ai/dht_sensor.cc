@@ -7,23 +7,37 @@
 static const char* TAG = "DHT_SENSOR";
 
 // 🔥 TASK PERIODIC (10 minute)
-static void DhtBackgroundTask(void* arg) {
+void DhtSensor::BackgroundTask(void* arg) {
     DhtSensor* self = static_cast<DhtSensor*>(arg);
 
     while (true) {
         bool ok = self->dht_.ReadData(3);
 
         if (ok) {
+            int temp = self->dht_.GetTemperature();
+            int hum  = self->dht_.GetHumidity();
+
             ESP_LOGI(TAG,
                      "Periodic reading -> Temp: %d°C, Humidity: %d%%",
-                     self->dht_.GetTemperature(),
-                     self->dht_.GetHumidity());
+                     temp, hum);
+
+            // 🔥 Afișare pe display prin MCP
+            auto& mcp = McpServer::GetInstance();
+            PropertyList props;
+
+            char msg[64];
+            snprintf(msg, sizeof(msg),
+                     "Temp: %d°C  Hum: %d%%",
+                     temp, hum);
+
+            props.Set("text", msg);
+            mcp.CallTool("self.display.show_notification", props);
+
         } else {
             ESP_LOGW(TAG, "Periodic reading failed");
         }
 
-        // 10 minute = 600000 ms
-        vTaskDelay(pdMS_TO_TICKS(600000));
+        vTaskDelay(pdMS_TO_TICKS(600000)); // 10 minute
     }
 }
 
@@ -32,7 +46,7 @@ DhtSensor::DhtSensor(gpio_num_t pin)
 {
     auto& mcp = McpServer::GetInstance();
 
-    // 🔥 TOOL PRINCIPAL: citire temperatură + umiditate
+    // 🔥 TOOL PRINCIPAL
     mcp.AddTool(
         "self.sensor.dht.read",
         "Read temperature and humidity from DHT sensor",
@@ -42,7 +56,6 @@ DhtSensor::DhtSensor(gpio_num_t pin)
             bool ok = dht_.ReadData(3);
 
             if (!ok) {
-                // fallback dacă avem date proaspete (<30 sec)
                 if (dht_.IsDataFresh(30000)) {
                     char buf[128];
                     snprintf(buf, sizeof(buf),
@@ -101,7 +114,7 @@ DhtSensor::DhtSensor(gpio_num_t pin)
 
     // 🔥 PORNIM TASK-UL PERIODIC
     xTaskCreatePinnedToCore(
-        DhtBackgroundTask,
+        BackgroundTask,
         "dht_bg_task",
         4096,
         this,
