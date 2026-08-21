@@ -1,5 +1,6 @@
 #include "dht_sensor.h"
 #include "application.h"
+#include "board.h"
 #include <stdio.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -7,7 +8,7 @@
 
 static const char* TAG = "DHT_SENSOR";
 
-// 🔥 TASK PERIODIC (10 minute)
+// 🔥 TASK PERIODIC (1 minut)
 void DhtSensor::BackgroundTask(void* arg) {
     DhtSensor* self = static_cast<DhtSensor*>(arg);
 
@@ -22,27 +23,23 @@ void DhtSensor::BackgroundTask(void* arg) {
                      "Periodic reading -> Temp: %d°C, Humidity: %d%%",
                      temp, hum);
 
-            // 🔥 Afișare pe display prin MCP JSONRPC
-            auto& app = Application::GetInstance();
-
+            // 🔥 Afișare directă pe display (identic cu volum/luminozitate)
             char msg[64];
             snprintf(msg, sizeof(msg),
                      "Temp: %d°C  Hum: %d%%",
                      temp, hum);
 
-            char json[256];
-            snprintf(json, sizeof(json),
-                "{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\","
-                "\"params\":{\"name\":\"self.display.show_notification\","
-                "\"arguments\":{\"text\":\"%s\"}},\"id\":999}",
-                msg);
+            auto display = Board::GetInstance().GetDisplay();
+            if (display) {
+                display->ShowNotification(msg);
+            }
 
-            app.SendMcpMessage(json);
         } else {
             ESP_LOGW(TAG, "Periodic reading failed");
         }
 
-        vTaskDelay(pdMS_TO_TICKS(600000)); // 10 minute
+        // 1 minut = 60000 ms
+        vTaskDelay(pdMS_TO_TICKS(60000));
     }
 }
 
