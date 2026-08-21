@@ -27,6 +27,7 @@
 #include "led/single_led.h"
 #include "system_reset.h"
 #include "esp_lcd_ili9341.h"
+#include "dht11.h"
 
 #define TAG "MariaAi"
 
